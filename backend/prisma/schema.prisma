@@ -1,0 +1,270 @@
+// LogiSense — schema multi-tenant (shared database + shared schema + tenant_id).
+// Regra crítica (AGENTS.md §7): TODA consulta de negócio filtra pelo tenantId
+// obtido da identidade autenticada. Nunca confiar em tenantId do frontend.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SimulationStatus {
+  COMPLETED
+  CANCELLED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ImportType {
+  CUSTOMERS
+  CARRIERS
+  SIMULATIONS
+}
+
+enum InsightSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  customers   Customer[]
+  carriers    Carrier[]
+  simulations FreightSimulation[]
+  imports     Import[]
+  auditLogs   AuditLog[]
+  insights    Insight[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  passwordHash String?
+  role         UserRole   @default(OPERATOR)
+  status       UserStatus @default(ACTIVE)
+  mfaSecret    String?
+  mfaEnabled   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  simulations   FreightSimulation[]
+  imports       Import[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model OAuthAccount {
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          OAuthProvider
+  providerAccountId String
+  createdAt         DateTime      @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Customer {
+  id        String         @id @default(uuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  city      String?
+  state     String?
+  status    CustomerStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  simulations FreightSimulation[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model Carrier {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  document       String?
+  email          String?
+  phone          String?
+  // Parâmetros de precificação usados pelo cálculo de frete (AGENTS.md §9).
+  baseFee        Decimal  @default(0) @db.Decimal(12, 2)
+  pricePerKg     Decimal  @db.Decimal(12, 2)
+  pricePerKm     Decimal  @db.Decimal(12, 4)
+  riskPercent    Decimal  @db.Decimal(5, 4)
+  cubingFactor   Int      @default(6000)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quotes            SimulationQuote[]
+  selectedInSims    FreightSimulation[] @relation("SelectedCarrier")
+
+  @@index([tenantId])
+  @@index([tenantId, active])
+}
+
+model FreightSimulation {
+  id                 String           @id @default(uuid())
+  tenantId           String
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerId         String?
+  customer           Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  selectedCarrierId  String?
+  selectedCarrier    Carrier?         @relation("SelectedCarrier", fields: [selectedCarrierId], references: [id], onDelete: SetNull)
+  origin             String
+  destination        String
+  weightKg           Float
+  lengthCm           Float
+  widthCm            Float
+  heightCm           Float
+  cargoValue         Decimal          @db.Decimal(14, 2)
+  distanceKm         Float?
+  volumetricWeightKg Float?
+  chargeableWeightKg Float?
+  status             SimulationStatus @default(COMPLETED)
+  createdAt          DateTime         @default(now())
+
+  quotes SimulationQuote[]
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, origin, destination])
+}
+
+model SimulationQuote {
+  id             String   @id @default(uuid())
+  simulationId   String
+  simulation     FreightSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  carrierId      String
+  carrier        Carrier  @relation(fields: [carrierId], references: [id], onDelete: Restrict)
+  freightCost    Decimal  @db.Decimal(14, 2)
+  additionalFees Decimal  @default(0) @db.Decimal(14, 2)
+  totalCost      Decimal  @db.Decimal(14, 2)
+  estimatedDays  Int?
+  isCheapest     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([simulationId])
+  @@index([carrierId])
+}
+
+model Import {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  filename      String
+  storedPath    String?
+  mimeType      String?
+  type          ImportType
+  sizeBytes     Int
+  status        ImportStatus @default(PENDING)
+  totalRows     Int          @default(0)
+  processedRows Int          @default(0)
+  errorMessage  String?      @db.Text
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?  @db.Text
+  requestId String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action])
+}
+
+model Insight {
+  id          String          @id @default(uuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  description String          @db.Text
+  severity    InsightSeverity @default(MEDIUM)
+  metadata    Json?
+  isRead      Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+}

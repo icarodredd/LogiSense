@@ -1,0 +1,72 @@
+name: logisense
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-logisense}
+      MYSQL_USER: ${MYSQL_USER:-logisense}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-logisense}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+      target: development
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '${API_PORT:-3001}:3001'
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: mysql://${MYSQL_USER:-logisense}:${MYSQL_PASSWORD:-logisense}@mysql:3306/${MYSQL_DATABASE:-logisense}
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    command: pnpm start:dev
+
+  # TODO(frontend): adicionar serviço `web` (Next.js) quando o frontend for dockerizado.
+  # web:
+  #   build:
+  #     context: ./frontend
+  #   ports:
+  #     - '${WEB_PORT:-3000}:3000'
+  #   depends_on:
+  #     - api
+
+volumes:
+  mysql-data:
+  redis-data:
