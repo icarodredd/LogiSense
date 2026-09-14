@@ -41,8 +41,26 @@ export class LoginDto {
   @MaxLength(128)
   password!: string;
 
-  // Fase 4 (MFA/TOTP): código do autenticador quando a conta exige MFA.
+  // Obrigatório quando a conta tem MFA ativo (MFA_REQUIRED sem ele).
   @IsOptional()
   @IsString()
+  @Matches(/^\d{6}$/, { message: 'O código TOTP deve ter 6 dígitos.' })
   totpCode?: string;
+}
+
+export class ConfirmMfaDto {
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'O código TOTP deve ter 6 dígitos.' })
+  totpCode!: string;
+}
+
+export class DisableMfaDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  password!: string;
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'O código TOTP deve ter 6 dígitos.' })
+  totpCode!: string;
 }

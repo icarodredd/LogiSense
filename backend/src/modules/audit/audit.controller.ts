@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { IsDateString, IsOptional, IsString } from 'class-validator';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
@@ -32,7 +32,7 @@ class AuditQueryDto extends PaginationQueryDto {
 
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   @Get()
   @Roles('ADMIN', 'MANAGER')

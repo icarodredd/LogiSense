@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  Inject,
   Injectable,
   type CanActivate,
   type ExecutionContext,
@@ -13,7 +14,7 @@ import type { AuthenticatedUser } from '../../../common/decorators/current-user.
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const required = this.reflector.getAllAndOverride<AppRole[]>(ROLES_KEY, [

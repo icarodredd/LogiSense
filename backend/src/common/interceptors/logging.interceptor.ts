@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   type CallHandler,
   type ExecutionContext,
@@ -11,7 +12,7 @@ import { AppLogger } from '../logger/app-logger.service.js';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  constructor(private readonly logger: AppLogger) {}
+  constructor(@Inject(AppLogger) private readonly logger: AppLogger) {}
 
   intercept(context: ExecutionContext, next: CallHandler) {
     const req = context.switchToHttp().getRequest<RequestWithId>();

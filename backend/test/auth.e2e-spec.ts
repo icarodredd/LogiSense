@@ -9,6 +9,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
+import { generateTotpToken } from './../src/modules/auth/mfa.service.js';
 
 const runDb = process.env.RUN_DB_TESTS === 'true' && !!process.env.DATABASE_URL;
 const stamp = Date.now();
@@ -132,5 +133,78 @@ describe.skipIf(!runDb)('Auth + RBAC + isolamento (e2e com banco)', () => {
     for (const entry of res.body.data as { tenantId: string }[]) {
       expect(entry.tenantId).toBe(tenantA.id);
     }
+  });
+
+  it('fluxo MFA completo: setup -> confirm -> login exige TOTP -> disable', async () => {
+    // Reautentica o admin (sessões anteriores foram revogadas).
+    await agentA
+      .post('/api/auth/login')
+      .send({ email: tenantInput('a').email, password: 'Senha123!' })
+      .expect(200);
+
+    const setup = await agentA.post('/api/auth/mfa/setup').expect(200);
+    expect(setup.body.secret).toBeDefined();
+    expect(setup.body.otpauthUri).toContain('otpauth://totp/');
+    expect(setup.body.qrCodeDataUri).toMatch(/^data:image\/png;base64,/);
+
+    // Confirm com código inválido não ativa.
+    await agentA
+      .post('/api/auth/mfa/confirm')
+      .send({ totpCode: '000000' })
+      .expect(400);
+
+    // Ativa com código válido gerado a partir do segredo.
+    const validCode = generateTotpToken(setup.body.secret);
+    await agentA
+      .post('/api/auth/mfa/confirm')
+      .send({ totpCode: validCode })
+      .expect(200);
+
+    // Login sem TOTP -> MFA_REQUIRED; com TOTP -> 200.
+    await agentA
+      .post('/api/auth/login')
+      .send({ email: tenantInput('a').email, password: 'Senha123!' })
+      .expect(401)
+      .then((res) => expect(res.body.code).toBe('MFA_REQUIRED'));
+    await agentA
+      .post('/api/auth/login')
+      .send({
+        email: tenantInput('a').email,
+        password: 'Senha123!',
+        totpCode: generateTotpToken(setup.body.secret),
+      })
+      .expect(200);
+
+    // Disable exige senha + TOTP.
+    await agentA
+      .post('/api/auth/mfa/disable')
+      .send({ password: 'Senha123!', totpCode: '000000' })
+      .expect(401);
+    await agentA
+      .post('/api/auth/mfa/disable')
+      .send({
+        password: 'Senha123!',
+        totpCode: generateTotpToken(setup.body.secret),
+      })
+      .expect(200);
+
+    // Após disable, login volta a dispensar TOTP.
+    await agentA
+      .post('/api/auth/login')
+      .send({ email: tenantInput('a').email, password: 'Senha123!' })
+      .expect(200);
+
+    // Auditoria registrou MFA_ENABLED e MFA_DISABLED.
+    const audit = await agentA
+      .get('/api/audit?action=MFA_ENABLED')
+      .expect(200);
+    expect(audit.body.meta.total).toBeGreaterThanOrEqual(1);
+  });
+
+  it('OAuth não configurado retorna erro controlado', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/auth/google/authorize')
+      .expect(401);
+    expect(res.body.code).toBe('OAUTH_NOT_CONFIGURED');
   });
 });

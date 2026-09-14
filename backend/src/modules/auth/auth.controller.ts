@@ -3,11 +3,15 @@ import {
   Controller,
   Get,
   HttpCode,
+  Inject,
+  NotFoundException,
   Post,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
+import bcrypt from 'bcryptjs';
 import type { Request, Response } from 'express';
 import {
   CurrentUser,
@@ -16,15 +20,20 @@ import {
 import { Public } from '../../common/decorators/public.decorator.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { extractAuditContext } from '../audit/audit-context.js';
-import { LoginDto, RegisterDto } from './auth.dto.js';
+import { AuditAction } from '../audit/audit-action.js';
+import { AuditService } from '../audit/audit.service.js';
+import { ConfirmMfaDto, DisableMfaDto, LoginDto, RegisterDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
+import { MfaService } from './mfa.service.js';
 import { REFRESH_COOKIE } from './guards/jwt-auth.guard.js';
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly auth: AuthService,
-    private readonly prisma: PrismaService,
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(MfaService) private readonly mfa: MfaService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AuditService) private readonly audit: AuditService,
   ) {}
 
   @Public()
@@ -45,7 +54,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @RateLimit(10, 60_000)
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
@@ -97,5 +106,85 @@ export class AuthController {
       select: { id: true, name: true, slug: true },
     });
     return { user, tenant };
+  }
+
+  // ---------------- MFA/TOTP (AGENTS.md §16) ----------------
+
+  /** Passo 1: gera segredo pendente + QR Code. Usuário já autenticado. */
+  @Post('mfa/setup')
+  @HttpCode(200)
+  async mfaSetup(@CurrentUser() user: AuthenticatedUser) {
+    const full = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, mfaEnabled: true, mfaSecret: true },
+    });
+    if (!full) {
+      throw new UnauthorizedException({
+        code: 'UNAUTHENTICATED',
+        message: 'Sessão inválida.',
+      });
+    }
+    return this.mfa.beginSetup(full);
+  }
+
+  /** Passo 2: valida o código e ativa o MFA. */
+  @Post('mfa/confirm')
+  @HttpCode(200)
+  @RateLimit(5, 60_000)
+  async mfaConfirm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ConfirmMfaDto,
+    @Req() req: Request,
+  ) {
+    const full = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, mfaEnabled: true, mfaSecret: true },
+    });
+    if (!full) throw new NotFoundException();
+    const result = await this.mfa.confirmSetup(full, dto.totpCode);
+    await this.audit.log({
+      ...extractAuditContext(req),
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: AuditAction.MFA_ENABLED,
+      entity: 'User',
+      entityId: user.id,
+    });
+    return result;
+  }
+
+  /** Desativa MFA: exige senha correta + TOTP válido. */
+  @Post('mfa/disable')
+  @HttpCode(200)
+  @RateLimit(5, 60_000)
+  async mfaDisable(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: DisableMfaDto,
+    @Req() req: Request,
+  ) {
+    const full = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, mfaEnabled: true, mfaSecret: true, passwordHash: true },
+    });
+    if (!full) throw new NotFoundException();
+    const passwordOk = full.passwordHash
+      ? await bcrypt.compare(dto.password, full.passwordHash)
+      : false;
+    if (!passwordOk) {
+      throw new UnauthorizedException({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Senha incorreta.',
+      });
+    }
+    const result = await this.mfa.disable(full, dto.totpCode);
+    await this.audit.log({
+      ...extractAuditContext(req),
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: AuditAction.MFA_DISABLED,
+      entity: 'User',
+      entityId: user.id,
+    });
+    return result;
   }
 }

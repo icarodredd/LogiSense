@@ -1,9 +1,15 @@
-# O Prisma Client é gerado no estágio base (válido para dev e build).
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@12 --activate
+
+RUN apk add --no-cache libc6-compat
+
+RUN corepack enable pnpm
+
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm config set strict-dep-builds false
 RUN pnpm install --frozen-lockfile
+
 COPY . .
 RUN pnpm exec prisma generate
 
@@ -15,11 +21,16 @@ FROM base AS build
 RUN pnpm build
 
 FROM node:22-alpine AS production
+RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && corepack prepare pnpm@12 --activate \
-  && pnpm install --prod --frozen-lockfile
+RUN corepack enable pnpm
+
+
+RUN pnpm config set strict-dep-builds false
+RUN pnpm install --prod --frozen-lockfile
+
 COPY --from=build /app/dist ./dist
 EXPOSE 3001
 CMD ["node", "dist/main"]

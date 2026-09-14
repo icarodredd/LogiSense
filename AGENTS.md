@@ -1233,6 +1233,7 @@ Não:
 - criar páginas sem loading/error/empty states;
 - introduzir bibliotecas sem necessidade clara;
 - sacrificar segurança para acelerar a implementação.
+- criar comentários desnecessários no código, evite comentários.
 
 ---
 

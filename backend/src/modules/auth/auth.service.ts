@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { toUserResponse } from '../users/user.presenter.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginDto, RegisterDto } from './auth.dto.js';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './guards/jwt-auth.guard.js';
+import { MfaService } from './mfa.service.js';
 import { TokenService, type SessionTokens, parseDurationToMs } from './token.service.js';
 import { ConfigService } from '@nestjs/config';
 
@@ -28,11 +30,12 @@ function slugify(value: string): string {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly users: UsersService,
-    private readonly tokens: TokenService,
-    private readonly audit: AuditService,
-    private readonly config: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(UsersService) private readonly users: UsersService,
+    @Inject(TokenService) private readonly tokens: TokenService,
+    @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(MfaService) private readonly mfa: MfaService,
+    @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
   setAuthCookies(res: Response, session: SessionTokens): void {
@@ -164,11 +167,16 @@ export class AuthService {
         message: 'Conta suspensa. Fale com o administrador.',
       });
     }
-    if (user.mfaEnabled) {
-      // Verificação TOTP chega na Fase 4; contas com MFA exigem o código.
+    if (user.mfaEnabled && !dto.totpCode) {
       throw new UnauthorizedException({
         code: 'MFA_REQUIRED',
-        message: 'Informe o código do autenticador.',
+        message: 'Informe o código do autenticador (campo totpCode).',
+      });
+    }
+    if (user.mfaEnabled && !this.mfa.verifyLoginTotp(user, dto.totpCode)) {
+      throw new UnauthorizedException({
+        code: 'INVALID_TOTP',
+        message: 'Código do autenticador inválido.',
       });
     }
     const session = await this.tokens.createSession(user);

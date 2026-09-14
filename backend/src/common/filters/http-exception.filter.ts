@@ -3,6 +3,7 @@ import {
   Catch,
   HttpException,
   HttpStatus,
+  Inject,
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -27,7 +28,7 @@ interface ExceptionBody {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  constructor(private readonly logger: AppLogger) {}
+  constructor(@Inject(AppLogger) private readonly logger: AppLogger) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();

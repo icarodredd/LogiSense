@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -8,7 +8,7 @@ import { PrismaService } from '../../database/prisma.service.js';
 
 @Controller('tenants')
 export class TenantsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   @Get('me')
   @Roles('ADMIN', 'MANAGER', 'OPERATOR')

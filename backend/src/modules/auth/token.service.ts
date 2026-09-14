@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'node:crypto';
@@ -30,9 +30,9 @@ export function hashToken(token: string): string {
 @Injectable()
 export class TokenService {
   constructor(
-    private readonly jwt: JwtService,
-    private readonly config: ConfigService,
-    private readonly prisma: PrismaService,
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
   ) {}
 
   async createSession(user: User): Promise<SessionTokens> {

@@ -4,13 +4,21 @@ export interface JwtConfig {
   refreshExpiresIn: string;
 }
 
+export interface OAuthConfig {
+  google: { clientId: string; clientSecret: string; callbackUrl: string };
+  github: { clientId: string; clientSecret: string; callbackUrl: string };
+}
+
 export interface AppConfig {
   nodeEnv: string;
   port: number;
   corsOrigins: string[];
+  frontendUrl: string;
   databaseUrl: string | undefined;
   redisUrl: string | undefined;
   jwt: JwtConfig;
+  oauth: OAuthConfig;
+  mfa: { encryptionKey: string };
   cookieSecure: boolean;
 }
 
@@ -31,6 +39,7 @@ export default (): AppConfig => {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
+    frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:3000',
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
     jwt: {
@@ -44,5 +53,26 @@ export default (): AppConfig => {
     cookieSecure: process.env.COOKIE_SECURE
       ? process.env.COOKIE_SECURE === 'true'
       : isProduction,
+    oauth: {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+        callbackUrl:
+          process.env.GOOGLE_CALLBACK_URL ??
+          'http://localhost:3001/api/auth/google/callback',
+      },
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID ?? '',
+        clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+        callbackUrl:
+          process.env.GITHUB_CALLBACK_URL ??
+          'http://localhost:3001/api/auth/github/callback',
+      },
+    },
+    mfa: {
+      // Chave que cifra segredos TOTP em repouso (AES-256-GCM).
+      // Obrigatória em produção: falha no boot em vez de default inseguro.
+      encryptionKey: required('MFA_ENCRYPTION_KEY', isProduction ? undefined : 'dev-mfa-key'),
+    },
   };
 };

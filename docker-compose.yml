@@ -45,8 +45,9 @@ services:
     ports:
       - '${API_PORT:-3001}:3001'
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/prisma:/app/prisma
+      - ./backend/src:/app/src:z
+      - ./backend/prisma:/app/prisma:z
+      - /app/node_modules
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -55,8 +56,16 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-dev-mfa-key}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3001/api/auth/google/callback}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-http://localhost:3001/api/auth/github/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-    command: pnpm start:dev
+    command: sh -c "pnpm exec prisma migrate deploy && pnpm exec tsx watch ./src/main.ts"
 
   # TODO(frontend): adicionar serviço `web` (Next.js) quando o frontend for dockerizado.
   # web:
