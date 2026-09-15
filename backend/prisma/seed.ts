@@ -19,9 +19,10 @@
  * Distâncias são aproximações rodoviárias para fins de demonstração.
  */
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import prismaClient from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+const { PrismaClient } = prismaClient;
 const prisma = new PrismaClient();
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('Senha123!', 10);
 
