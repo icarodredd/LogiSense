@@ -12,18 +12,35 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './modules/auth/guards/roles.guard.js';
+import { CarriersModule } from './modules/carriers/carriers.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { FreightModule } from './modules/freight/freight.module.js';
+import { CustomersModule } from './modules/customers/customers.module.js';
+import { InsightsModule } from './modules/insights/insights.module.js';
+import { SimulationsModule } from './modules/simulations/simulations.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { ImportsModule } from './modules/imports/imports.module.js';
+import { QueueModule } from './queue/queue.module.js';
+import { WebSocketGateway } from './websocket/websocket.gateway.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
     RateLimitModule.forRoot({ limit: 120, ttlMs: 60_000 }),
     DatabaseModule,
+    QueueModule.forRoot(),
     AuditModule,
     AuthModule,
     UsersModule,
+    CustomersModule,
+    CarriersModule,
+    FreightModule,
+    SimulationsModule,
+    DashboardModule,
+    InsightsModule,
     HealthModule,
+    ImportsModule,
   ],
   providers: [
     AppLogger,
