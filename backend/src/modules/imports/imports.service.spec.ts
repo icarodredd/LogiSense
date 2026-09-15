@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ImportsService } from './imports.service.js';
-import { ImportStatus } from '@prisma/client';
+import pkg from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
-import { UserRole } from '@prisma/client';
+
+const { ImportStatus, UserRole } = pkg;
 
 vi.mock('../../websocket/websocket.gateway.js', () => ({
   WebSocketGateway: class {},

@@ -6,10 +6,12 @@ import type { AuthenticatedUser } from '../../common/decorators/current-user.dec
 import { AuditAction } from '../audit/audit-action.js';
 import { AuditService, type AuditContext } from '../audit/audit.service.js';
 import { ImportProcessor } from '../../queue/import.processor.js';
-import { ImportStatus } from '@prisma/client';
+import prismaClient from '@prisma/client';
 import { toImportResponse } from './import.presenter.js';
 import type { ImportFileMeta, ListImportsQueryDto } from './import.dto.js';
 import { getPagination } from '../../common/http/pagination.js';
+
+const { ImportStatus } = prismaClient;
 
 @Injectable()
 export class ImportsService implements OnModuleInit {

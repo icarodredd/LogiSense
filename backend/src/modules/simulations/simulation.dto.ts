@@ -10,7 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/http/pagination.js';
-import { SimulationStatus } from '@prisma/client';
+import type { SimulationStatus as PrismaSimulationStatus } from '@prisma/client';
 
 export class CreateSimulationDto {
   @IsString()
@@ -55,6 +55,6 @@ export class ListSimulationsQueryDto extends PaginationQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(['COMPLETED', 'CANCELLED'] as SimulationStatus[])
-  status?: SimulationStatus;
+  @IsEnum(['COMPLETED', 'CANCELLED'] as PrismaSimulationStatus[])
+  status?: PrismaSimulationStatus;
 }

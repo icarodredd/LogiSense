@@ -1,14 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
-import { InsightSeverity } from '@prisma/client';
+import prismaClient from '@prisma/client';
+import type { InsightSeverity as PrismaInsightSeverity } from '@prisma/client';
+
+const { InsightSeverity } = prismaClient;
 
 export interface InsightItem {
   id: string;
   type: string;
   title: string;
   description: string;
-  severity: InsightSeverity;
+  severity: PrismaInsightSeverity;
   metadata: Record<string, unknown> | null;
   isRead: boolean;
   createdAt: Date;
@@ -18,7 +21,7 @@ export interface InsightRule {
   type: 'economy' | 'carrier' | 'concentration' | 'trend';
   title: string;
   description: string;
-  severity: InsightSeverity;
+  severity: PrismaInsightSeverity;
   metadata: Record<string, unknown>;
 }
 

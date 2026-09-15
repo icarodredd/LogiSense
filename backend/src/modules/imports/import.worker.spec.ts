@@ -3,7 +3,9 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ImportWorker } from './import.worker.js';
-import { ImportStatus, ImportType } from '@prisma/client';
+import pkg from '@prisma/client';
+
+const { ImportStatus, ImportType } = pkg;
 
 const me = { id: 'user-1' };
 const tenantId = 'tenant-1';

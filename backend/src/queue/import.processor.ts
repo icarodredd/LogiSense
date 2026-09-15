@@ -3,7 +3,7 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { RedisService } from '../database/redis.service.js';
 import { QUEUE_NAMES } from './queue.constants.js';
 import { ImportWorker } from '../modules/imports/import.worker.js';
-import { ImportType } from '@prisma/client';
+import type { ImportType as PrismaImportType } from '@prisma/client';
 import { join } from 'node:path';
 import type { AuditContext } from '../modules/audit/audit.service.js';
 import { AppLogger } from '../common/logger/app-logger.service.js';
@@ -46,7 +46,7 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
             data.tenantId,
             data.filePath,
             data.mimeType,
-            data.type as ImportType,
+            data.type as PrismaImportType,
             data.auditCtx ?? {},
             data.userId,
           );

@@ -1,4 +1,7 @@
-import { ImportType, ImportStatus } from '@prisma/client';
+import type {
+  ImportType as PrismaImportType,
+  ImportStatus as PrismaImportStatus,
+} from '@prisma/client';
 
 export function toImportResponse(imp: {
   id: string;
@@ -7,9 +10,9 @@ export function toImportResponse(imp: {
   filename: string;
   storedPath?: string | null;
   mimeType?: string | null;
-  type: ImportType;
+  type: PrismaImportType;
   sizeBytes: number;
-  status: ImportStatus;
+  status: PrismaImportStatus;
   totalRows: number;
   processedRows: number;
   errorMessage?: string | null;

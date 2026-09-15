@@ -3,13 +3,16 @@ import { PrismaService } from '../../database/prisma.service.js';
 import { WebSocketGateway } from '../../websocket/websocket.gateway.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuditAction } from '../audit/audit-action.js';
-import { ImportStatus, ImportType } from '@prisma/client';
+import pkg from '@prisma/client';
+import type { ImportType as PrismaImportType } from '@prisma/client';
 import { parse } from 'csv-parse';
 import ExcelJS from 'exceljs';
 import { createReadStream } from 'node:fs';
 import { mkdir, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { AuditContext } from '../audit/audit.service.js';
+
+const { ImportStatus, ImportType } = pkg;
 
 type Row = Record<string, string>;
 
@@ -33,7 +36,7 @@ export class ImportWorker {
     tenantId: string,
     filePath: string,
     mimeType: string,
-    type: ImportType,
+    type: PrismaImportType,
     auditCtx: AuditContext,
     userId?: string,
   ) {

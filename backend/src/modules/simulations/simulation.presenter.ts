@@ -1,5 +1,8 @@
-import type { FreightSimulation, SimulationQuote } from '@prisma/client';
-import { SimulationStatus } from '@prisma/client';
+import type {
+  FreightSimulation,
+  SimulationQuote,
+  SimulationStatus as PrismaSimulationStatus,
+} from '@prisma/client';
 
 export interface SimulationQuoteResponse {
   id: string;
@@ -29,7 +32,7 @@ export interface SimulationResponse {
   distanceKm: number | null;
   volumetricWeightKg: number | null;
   chargeableWeightKg: number | null;
-  status: SimulationStatus;
+  status: PrismaSimulationStatus;
   quotes: SimulationQuoteResponse[];
   cheapestQuote: SimulationQuoteResponse | null;
   createdAt: Date;
