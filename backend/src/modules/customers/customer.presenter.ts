@@ -5,6 +5,7 @@ export interface CustomerResponse {
   tenantId: string;
   name: string;
   document: string | null;
+  cep: string | null;
   email: string | null;
   phone: string | null;
   city: string | null;
@@ -20,6 +21,7 @@ export function toCustomerResponse(customer: Customer): CustomerResponse {
     tenantId: customer.tenantId,
     name: customer.name,
     document: customer.document,
+    cep: customer.cep,
     email: customer.email,
     phone: customer.phone,
     city: customer.city,

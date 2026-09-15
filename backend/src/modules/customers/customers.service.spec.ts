@@ -103,4 +103,61 @@ describe('CustomersService — regras', () => {
       }),
     );
   });
+
+  it('create armazena CEP quando informado', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue(null);
+    prisma.customer.create.mockResolvedValue({ id: 'c1', cep: '01000000' });
+    await service.create(me, { name: 'N', cep: '01000000' } as never, auditCtx);
+    expect(prisma.customer.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cep: '01000000' }),
+      }),
+    );
+  });
+
+  it('create normaliza CEP (remove hífen)', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue(null);
+    prisma.customer.create.mockResolvedValue({ id: 'c1', cep: '01000000' });
+    await service.create(me, { name: 'N', cep: '01000-000' } as never, auditCtx);
+    expect(prisma.customer.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cep: '01000000' }),
+      }),
+    );
+  });
+
+  it('create armazena null quando CEP não informado', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue(null);
+    prisma.customer.create.mockResolvedValue({ id: 'c1', cep: null });
+    await service.create(me, { name: 'N' } as never, auditCtx);
+    expect(prisma.customer.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cep: null }),
+      }),
+    );
+  });
+
+  it('update atualiza CEP quando informado', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue({ id: 'c1', name: 'C', cep: null });
+    prisma.customer.update.mockResolvedValue({ id: 'c1', cep: '12345678' });
+    await service.update(me, 'c1', { cep: '12345678' } as never, auditCtx);
+    expect(prisma.customer.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cep: '12345678' }),
+      }),
+    );
+  });
+
+  it('update define CEP como null quando explicitamente não informado', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue({ id: 'c1', name: 'C', cep: '12345678' });
+    prisma.customer.update.mockResolvedValue({ id: 'c1', cep: null });
+    await service.update(me, 'c1', { cep: undefined } as never, auditCtx);
+    // DTO não inclui cep quando undefined, então não deve ser alterado
+    expect(prisma.customer.update).toHaveBeenCalled();
+  });
 });

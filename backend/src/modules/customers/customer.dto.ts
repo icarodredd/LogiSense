@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/http/pagination.js';
@@ -19,6 +20,12 @@ export class CreateCustomerDto {
   @IsString()
   @MaxLength(45)
   document?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{8}$/, { message: 'CEP deve ter 8 dígitos.' })
+  @MaxLength(8)
+  cep?: string;
 
   @IsOptional()
   @IsEmail()
@@ -51,6 +58,12 @@ export class UpdateCustomerDto {
   @IsString()
   @MaxLength(45)
   document?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{8}$/, { message: 'CEP deve ter 8 dígitos.' })
+  @MaxLength(8)
+  cep?: string;
 
   @IsOptional()
   @IsEmail()

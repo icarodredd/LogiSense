@@ -107,7 +107,7 @@ async function seedTenant(input: {
   name: string;
   slug: string;
   users: { name: string; emailPrefix: string; role: 'ADMIN' | 'MANAGER' | 'OPERATOR' }[];
-  customerNames: { name: string; city: string; state: string }[];
+  customerNames: { name: string; city: string; state: string; cep?: string }[];
   carriers: { name: string; baseFee: number; pricePerKg: number; pricePerKm: number; riskPercent: number }[];
   simulationCount: number;
 }) {
@@ -150,6 +150,7 @@ async function seedTenant(input: {
           tenantId: tenant.id,
           name: customer.name,
           document: `00.000.000/000${String(index + 1).padStart(2, '0')}-00`,
+          cep: customer.cep ?? null,
           email: `contato@${customer.name.toLowerCase().replace(/[^a-z]/g, '')}.com.br`,
           city: customer.city,
           state: customer.state,
@@ -277,18 +278,18 @@ async function main() {
       { name: 'Omar Operador', emailPrefix: 'op5', role: 'OPERATOR' },
     ],
     customerNames: [
-      { name: 'Mercado Central', city: 'São Paulo', state: 'SP' },
-      { name: 'Varejo Nordeste', city: 'Fortaleza', state: 'CE' },
-      { name: 'Atacado Sul', city: 'Porto Alegre', state: 'RS' },
-      { name: 'Distribuidora Leste', city: 'Rio de Janeiro', state: 'RJ' },
-      { name: 'Comercial Oeste', city: 'Brasília', state: 'DF' },
-      { name: 'Supermercados Norte', city: 'Manaus', state: 'AM' },
-      { name: 'Loja Mineira', city: 'Belo Horizonte', state: 'MG' },
-      { name: 'Empório Baiano', city: 'Salvador', state: 'BA' },
-      { name: 'Atacadão Paranaense', city: 'Curitiba', state: 'PR' },
-      { name: 'Varejo Pernambucano', city: 'Recife', state: 'PE' },
-      { name: 'Distribuidora Carioca', city: 'Rio de Janeiro', state: 'RJ' },
-      { name: 'Central Paulista', city: 'São Paulo', state: 'SP' },
+      { name: 'Mercado Central', city: 'São Paulo', state: 'SP', cep: '01000000' },
+      { name: 'Varejo Nordeste', city: 'Fortaleza', state: 'CE', cep: '60000000' },
+      { name: 'Atacado Sul', city: 'Porto Alegre', state: 'RS', cep: '90000000' },
+      { name: 'Distribuidora Leste', city: 'Rio de Janeiro', state: 'RJ', cep: '20000000' },
+      { name: 'Comercial Oeste', city: 'Brasília', state: 'DF', cep: '70000000' },
+      { name: 'Supermercados Norte', city: 'Manaus', state: 'AM', cep: '69000000' },
+      { name: 'Loja Mineira', city: 'Belo Horizonte', state: 'MG', cep: '30000000' },
+      { name: 'Empório Baiano', city: 'Salvador', state: 'BA', cep: '40000000' },
+      { name: 'Atacadão Paranaense', city: 'Curitiba', state: 'PR', cep: '80000000' },
+      { name: 'Varejo Pernambucano', city: 'Recife', state: 'PE', cep: '50000000' },
+      { name: 'Distribuidora Carioca', city: 'Rio de Janeiro', state: 'RJ', cep: '21000000' },
+      { name: 'Central Paulista', city: 'São Paulo', state: 'SP', cep: '01310000' },
     ],
     carriers: [
       { name: 'TransVeloz', baseFee: 45, pricePerKg: 1.85, pricePerKm: 0.62, riskPercent: 0.004 },
@@ -308,9 +309,9 @@ async function main() {
       { name: 'Bia Operadora', emailPrefix: 'op1', role: 'OPERATOR' },
     ],
     customerNames: [
-      { name: 'Cliente Beta Um', city: 'São Paulo', state: 'SP' },
-      { name: 'Cliente Beta Dois', city: 'Curitiba', state: 'PR' },
-      { name: 'Cliente Beta Três', city: 'Salvador', state: 'BA' },
+      { name: 'Cliente Beta Um', city: 'São Paulo', state: 'SP', cep: '01001000' },
+      { name: 'Cliente Beta Dois', city: 'Curitiba', state: 'PR', cep: '80010000' },
+      { name: 'Cliente Beta Três', city: 'Salvador', state: 'BA', cep: '40010000' },
     ],
     carriers: [
       { name: 'Beta Cargas', baseFee: 40, pricePerKg: 1.9, pricePerKm: 0.65, riskPercent: 0.004 },

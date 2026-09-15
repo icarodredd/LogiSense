@@ -89,6 +89,7 @@ export class CustomersService {
         tenantId: currentUser.tenantId,
         name: dto.name.trim(),
         document: dto.document?.trim() ?? null,
+        cep: dto.cep ? dto.cep.replace(/\D/g, '') : null,
         email: dto.email?.trim() ?? null,
         phone: dto.phone?.trim() ?? null,
         city: dto.city?.trim() ?? null,
@@ -122,6 +123,7 @@ export class CustomersService {
         message: 'Cliente não encontrado.',
       });
     }
+    const cep = dto.cep ? dto.cep.replace(/\D/g, '') : undefined;
     const updated = await this.prisma.customer.update({
       where: { id: customer.id },
       data: {
@@ -129,6 +131,7 @@ export class CustomersService {
         ...(dto.document !== undefined
           ? { document: dto.document.trim() ?? null }
           : {}),
+        ...(dto.cep !== undefined ? { cep } : {}),
         ...(dto.email !== undefined ? { email: dto.email.trim() ?? null } : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone.trim() ?? null } : {}),
         ...(dto.city !== undefined ? { city: dto.city.trim() ?? null } : {}),

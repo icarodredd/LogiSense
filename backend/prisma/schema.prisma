@@ -126,6 +126,7 @@ model Customer {
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
   document  String?
+  cep       String?
   email     String?
   phone     String?
   city      String?
@@ -138,6 +139,7 @@ model Customer {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, cep])
 }
 
 model Carrier {
