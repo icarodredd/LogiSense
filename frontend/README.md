@@ -260,33 +260,33 @@ Ocultar ações não permitidas melhora a UX, mas nunca substitui a autorizaçã
 
 ### Processamento e inteligência
 
-- [ ] Upload de CSV/XLSX.
-- [ ] Status de importação.
-- [ ] Progresso via Socket.IO.
-- [ ] Retry de importação.
-- [ ] Insights por período e severidade.
+- [x] Upload de CSV/XLSX.
+- [x] Status de importação.
+- [ ] Progresso via Socket.IO (o gateway exige access token JWT, enquanto a sessão web usa cookies HttpOnly).
+- [x] Retry de importação.
+- [x] Insights por período e severidade.
 - [ ] Links contextuais dos insights.
 
 ### Administração
 
-- [ ] Gestão de usuários.
-- [ ] Alteração de perfis.
-- [ ] Auditoria com filtros.
+- [x] Gestão de usuários.
+- [x] Alteração de perfis.
+- [x] Auditoria com filtros.
 - [ ] Configurações do tenant.
-- [ ] Perfil e senha.
-- [ ] MFA completo.
+- [ ] Perfil e senha (endpoints ainda não disponíveis no backend).
+- [x] MFA completo.
 
 ### Qualidade e publicação
 
-- [ ] Revisão desktop.
-- [ ] Revisão tablet.
-- [ ] Revisão mobile.
-- [ ] Revisão de contraste e acessibilidade.
-- [ ] Revisão de loading, vazio, erro e sucesso.
-- [ ] Testes de sessão expirada e API indisponível.
-- [ ] `pnpm lint`.
-- [ ] `pnpm build`.
-- [ ] Atualização final desta documentação.
+- [x] Revisão desktop.
+- [x] Revisão tablet.
+- [x] Revisão mobile.
+- [x] Revisão de contraste e acessibilidade.
+- [x] Revisão de loading, vazio, erro e sucesso.
+- [x] Testes de sessão expirada e API indisponível.
+- [x] `pnpm lint`.
+- [x] `pnpm build`.
+- [x] Atualização final desta documentação.
 
 ## Fluxo obrigatório para codar um módulo
 

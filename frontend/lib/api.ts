@@ -10,6 +10,10 @@ export type AuthUser = {
   role: "ADMIN" | "MANAGER" | "OPERATOR";
   tenantId: string;
 };
+export type AuthTenant = { id: string; name: string; slug: string };
+type CachedSession = { user: AuthUser; tenant: AuthTenant };
+export type ManagedUser = AuthUser & { status: "ACTIVE" | "SUSPENDED"; mfaEnabled: boolean; createdAt: string; updatedAt: string };
+export type AuditLog = { id: string; action: string; entity: string; entityId: string | null; metadata: Record<string, unknown> | null; ip: string | null; createdAt: string; user: { id: string; name: string; email: string } | null };
 
 export type DashboardOverview = {
   totalSimulations: number;
@@ -57,6 +61,32 @@ export type Simulation = {
   customer?: { id: string; name: string } | null; user?: { id: string; name: string } | null;
   potentialSavings?: number; createdAt: string;
 };
+export type ImportStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type ImportType = "CUSTOMERS" | "CARRIERS" | "SIMULATIONS";
+export type ImportRecord = {
+  id: string;
+  tenantId: string;
+  userId: string | null;
+  filename: string;
+  type: ImportType;
+  sizeBytes: number;
+  status: ImportStatus;
+  totalRows: number;
+  processedRows: number;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+export type Insight = {
+  id: string;
+  type: "economy" | "carrier" | "concentration" | "trend" | string;
+  title: string;
+  description: string;
+  severity: "LOW" | "MEDIUM" | "HIGH";
+  metadata: Record<string, unknown> | null;
+  isRead: boolean;
+  createdAt: string;
+};
 type Page<T> = { data: T[]; meta: { page: number; limit: number; total: number; totalPages: number } };
 
 export class ApiError extends Error {
@@ -81,18 +111,41 @@ function isPublicAuthPath(path: string) {
 }
 
 let refreshPromise: Promise<unknown> | null = null;
+const SESSION_CACHE_KEY = "logisense.session";
+
+function readCachedSession(): CachedSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.sessionStorage.getItem(SESSION_CACHE_KEY);
+    return value ? JSON.parse(value) as CachedSession : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSession(session: CachedSession) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
+}
+
+function clearCachedSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(SESSION_CACHE_KEY);
+}
 
 async function request<T>(path: string, init?: RequestInit, canRefresh = true): Promise<T> {
   let response: Response;
   try {
+    const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
     response = await fetch(`${API_URL}${path}`, {
       ...init,
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...init?.headers },
     });
   } catch {
     throw new ApiError({ statusCode: 0, code: "API_UNAVAILABLE", message: "Não foi possível conectar ao servidor. Tente novamente." });
   }
+
   if (response.status === 401 && canRefresh && !isPublicAuthPath(path)) {
     try {
       refreshPromise ??= request("/auth/refresh", { method: "POST" }, false).finally(() => {
@@ -111,16 +164,37 @@ async function request<T>(path: string, init?: RequestInit, canRefresh = true): 
   return response.json() as Promise<T>;
 }
 
+async function upload<T>(path: string, body: FormData, canRefresh = true): Promise<T> {
+  return request<T>(path, { method: "POST", body }, canRefresh);
+}
+
 export const api = {
-  login: (email: string, password: string, totpCode?: string) =>
-    request<{ user: AuthUser }>("/auth/login", {
+  login: async (email: string, password: string, totpCode?: string) => {
+    const result = await request<{ user: AuthUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }),
-    }),
-  register: (data: { tenantName: string; name: string; email: string; password: string }) =>
-    request<{ user: AuthUser; tenant: { id: string; name: string; slug: string } }>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
-  me: () => request<{ user: AuthUser; tenant: { id: string; name: string; slug: string } }>("/auth/me"),
-  logout: () => request<{ loggedOut: boolean }>("/auth/logout", { method: "POST" }),
+    });
+    writeCachedSession({ user: result.user, tenant: readCachedSession()?.tenant ?? { id: result.user.tenantId, name: "Workspace", slug: "" } });
+    return result;
+  },
+  register: async (data: { tenantName: string; name: string; email: string; password: string }) => {
+    const result = await request<{ user: AuthUser; tenant: AuthTenant }>("/auth/register", { method: "POST", body: JSON.stringify(data) });
+    writeCachedSession(result);
+    return result;
+  },
+  me: async () => {
+    const result = await request<{ user: AuthUser; tenant: AuthTenant }>("/auth/me");
+    writeCachedSession(result);
+    return result;
+  },
+  logout: async () => {
+    try {
+      return await request<{ loggedOut: boolean }>("/auth/logout", { method: "POST" });
+    } finally {
+      clearCachedSession();
+    }
+  },
+  cachedSession: readCachedSession,
   overview: () => request<DashboardOverview>("/dashboard/overview"),
   carriers: () => request<DashboardCarrier[]>("/dashboard/carriers"),
   routes: () => request<DashboardRoute[]>("/dashboard/routes"),
@@ -136,4 +210,23 @@ export const api = {
   history: (params = "") => request<{ items: Simulation[]; total: number; page: number; limit: number }>(`/simulations/history?limit=20${params}`),
   simulation: (id: string) => request<Simulation>(`/simulations/${id}`),
   createSimulation: (data: Record<string, unknown>) => request<Simulation>("/simulations", { method: "POST", body: JSON.stringify(data) }),
+  imports: (params = "") => request<Page<ImportRecord> | { items: ImportRecord[]; total: number; page: number; limit: number }>(`/imports?limit=20${params}`),
+  import: (id: string) => request<ImportRecord>(`/imports/${id}`),
+  uploadImport: (file: File, type: ImportType) => {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("type", type);
+    return upload<ImportRecord>("/imports", body);
+  },
+  retryImport: (id: string) => request<ImportRecord>(`/imports/${id}/retry`, { method: "POST" }),
+  insights: () => request<Insight[]>("/insights"),
+  regenerateInsights: () => request<Insight[]>("/insights/regenerate", { method: "POST" }),
+  users: (params = "") => request<Page<ManagedUser>>(`/users?limit=20${params}`),
+  createUser: (data: { name: string; email: string; password: string; role?: ManagedUser["role"] }) => request<ManagedUser>("/users", { method: "POST", body: JSON.stringify(data) }),
+  updateUser: (id: string, data: Partial<Pick<ManagedUser, "name" | "role" | "status">>) => request<ManagedUser>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteUser: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
+  audit: (params = "") => request<Page<AuditLog>>(`/audit?limit=20${params}`),
+  mfaSetup: () => request<{ otpauthUri: string; qrCodeDataUri: string; secret: string }>("/auth/mfa/setup", { method: "POST" }),
+  mfaConfirm: (totpCode: string) => request<{ mfaEnabled: true }>("/auth/mfa/confirm", { method: "POST", body: JSON.stringify({ totpCode }) }),
+  mfaDisable: (password: string, totpCode: string) => request<{ mfaEnabled: false }>("/auth/mfa/disable", { method: "POST", body: JSON.stringify({ password, totpCode }) }),
 };

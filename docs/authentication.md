@@ -52,7 +52,7 @@ clock skew do otplib.
 Fluxo Authorization Code com `state` anti-CSRF (Redis, TTL 5 min, one-time):
 
 ```text
-GET /api/auth/:provider/authorize[?tenantId=...]
+GET /api/auth/:provider/authorize
   -> redirect ao provedor
 GET /api/auth/:provider/callback?code=...&state=...
   -> valida/consome state, troca code, resolve usuário, cria sessão,
@@ -63,15 +63,44 @@ GET /api/auth/:provider/callback?code=...&state=...
 `/user/emails` quando o e-mail é privado). Resolução de usuário:
 
 1. conta OAuth já vinculada (`oauth_accounts`) → login direto;
-2. e-mail existe → **vincula** ao usuário do tenant (`tenantId` opcional
-   desambigua e-mails repetidos entre tenants);
-3. não existe + `tenantId` válido → cria usuário `OPERATOR` vinculado;
-4. não existe sem `tenantId` → `OAUTH_NO_ACCOUNT` (401): exige login por
-   senha primeiro para vincular.
+2. e-mail existe → **vincula automaticamente** ao primeiro usuário local com
+   o mesmo e-mail verificado;
+3. não existe → cria um **tenant novo** com slug derivado do nome do provedor
+   e o primeiro usuário como `ADMIN`.
 
 Erros: `OAUTH_NOT_CONFIGURED`, `OAUTH_INVALID_STATE`, `OAUTH_PROVIDER_ERROR`,
 `OAUTH_EMAIL_UNAVAILABLE`. Audita `OAUTH_LOGIN` / `OAUTH_ACCOUNT_LINKED`
 (metadata: provider, nunca tokens).
+
+#### Configuração dos provedores
+
+1. Crie um OAuth Client no Google Cloud Console, em **APIs & Services >
+   Credentials**, do tipo **Web application**. Adicione o callback local
+   `http://localhost:3001/api/auth/google/callback` e o callback HTTPS da
+   produção.
+2. Crie um OAuth App no GitHub em **Settings > Developer settings > OAuth
+   Apps**. Use a mesma URL de callback correspondente ao ambiente:
+   `http://localhost:3001/api/auth/github/callback` local ou a URL HTTPS da
+   produção.
+3. Copie os client IDs e secrets para `backend/.env`. Nunca coloque secrets
+   em variáveis `NEXT_PUBLIC_*`, no frontend ou no repositório:
+
+```dotenv
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_CALLBACK_URL=http://localhost:3001/api/auth/github/callback
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
+COOKIE_SECURE=false
+```
+
+Em produção, substitua os callbacks e `FRONTEND_URL` por URLs HTTPS, configure
+`CORS_ORIGINS` somente com as origens oficiais e use `COOKIE_SECURE=true`.
+O botão do frontend redireciona diretamente para o backend; o callback cria a
+sessão nos cookies HttpOnly e retorna para `/dashboard`.
 
 ## Tokens e cookies
 
@@ -114,5 +143,7 @@ perfil, sem excluir o último admin ativo.
 - Auditoria nunca persiste secrets/tokens (sanitização no `AuditService`).
 - OAuth: `state` aleatório de 24 bytes armazenado no Redis (one-time, TTL 5 min)
   previne CSRF no callback; e-mails não verificados do provedor são rejeitados.
+  O fluxo não aceita `tenantId` em query string, evitando associação a tenant
+  escolhida pelo cliente.
 - Segredos TOTP cifrados em repouso (AES-256-GCM via scrypt da env key) —
   vazamento do banco não expõe segredos utilizáveis.

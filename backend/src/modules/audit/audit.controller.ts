@@ -4,6 +4,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
 import {
   PaginationQueryDto,
+  getPagination,
   toPaginatedResponse,
 } from '../../common/http/pagination.js';
 import { PrismaService } from '../../database/prisma.service.js';
@@ -40,8 +41,7 @@ export class AuditController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: AuditQueryDto,
   ) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const { page, limit } = getPagination(query);
     const where = {
       tenantId: user.tenantId,
       ...(query.action ? { action: query.action } : {}),

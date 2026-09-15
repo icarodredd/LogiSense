@@ -27,7 +27,9 @@ interface GoogleProfileResponse {
   name?: string;
 }
 interface GitHubTokenResponse {
-  access_token: string;
+  access_token?: string;
+  error?: string;
+  error_description?: string;
 }
 interface GitHubProfileResponse {
   id: number;
@@ -38,6 +40,16 @@ interface GitHubProfileResponse {
 
 export type OAuthProviderName = 'google' | 'github';
 
+function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'workspace';
+}
+
 /**
  * OAuth Google/GitHub com fluxo Authorization Code (AGENTS.md §16).
  *
@@ -45,9 +57,8 @@ export type OAuthProviderName = 'google' | 'github';
  * e o callback cuida do restante. Nenhum secret trafega ao browser.
  *
  * Vinculação de contas (oauth_accounts): se o e-mail do provedor já existe
- * em um único tenant, vincula; se não existe, cria usuário OPERATOR em um
- * tenant específico (via state) — o tenantId SEMPRE deriva do usuário,
- * nunca do cliente.
+ * em um tenant, vincula; se não existe, cria um tenant novo e o primeiro
+ * usuário como ADMIN.
  */
 @Injectable()
 export class OAuthService {
@@ -132,10 +143,11 @@ export class OAuthService {
       {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
+          'content-type': 'application/x-www-form-urlencoded',
           accept: 'application/json',
+          'user-agent': 'LogiSense',
         },
-        body: JSON.stringify({
+        body: new URLSearchParams({
           client_id: cfg.clientId,
           client_secret: cfg.clientSecret,
           code,
@@ -143,6 +155,12 @@ export class OAuthService {
         }),
       },
     );
+    if (!token.access_token) {
+      throw new UnauthorizedException({
+        code: 'OAUTH_PROVIDER_ERROR',
+        message: 'O GitHub não autorizou a troca do código OAuth.',
+      });
+    }
     const headers = {
       authorization: `Bearer ${token.access_token}`,
       accept: 'application/vnd.github+json',
@@ -179,11 +197,10 @@ export class OAuthService {
    * Resolve o usuário local a partir do perfil OAuth:
    * 1. conta oauth já vinculada -> retorna usuário;
    * 2. e-mail já existe -> vincula a conta OAuth ao usuário existente;
-   * 3. não existe -> cria usuário OPERATOR no tenant do state (invite/link).
+   * 3. não existe -> cria um tenant novo e seu primeiro usuário ADMIN.
    */
   async resolveUser(
     profile: OAuthProfile,
-    tenantHint?: string,
   ): Promise<ResolvedOAuthUser> {
     // 1. Conta já vinculada?
     const linked = await this.prisma.oAuthAccount.findUnique({
@@ -197,15 +214,12 @@ export class OAuthService {
     });
     if (linked) return { user: linked.user, created: false, linked: true };
 
-    // 2. E-mail já existe (podem ser múltiplos tenants) — sem tenantHint,
-    //    ambiguidade não decide tenant: exige hint ou falha.
+    // 2. E-mail já existe: vincula automaticamente à primeira conta local.
     const byEmail = await this.prisma.user.findMany({
       where: { email: profile.email },
       orderBy: { createdAt: 'asc' },
     });
-    const target = tenantHint
-      ? byEmail.find((u) => u.tenantId === tenantHint)
-      : (byEmail[0] ?? null);
+    const target = byEmail[0] ?? null;
     if (target) {
       await this.prisma.oAuthAccount.create({
         data: {
@@ -217,29 +231,23 @@ export class OAuthService {
       return { user: target, created: false, linked: true };
     }
 
-    // 3. Sem usuário e sem tenant válido para cadastro -> erro controlado.
-    if (!tenantHint) {
-      throw new UnauthorizedException({
-        code: 'OAUTH_NO_ACCOUNT',
-        message:
-          'Nenhuma conta encontrada para este e-mail. Faça login com senha primeiro para vincular.',
-      });
+    // 3. Primeiro acesso: cria um tenant próprio, sem aceitar tenantId externo.
+    const baseSlug = slugify(profile.name);
+    let slug = baseSlug;
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const taken = await this.prisma.tenant.findUnique({ where: { slug } });
+      if (!taken) break;
+      slug = `${baseSlug}-${attempt + 1}`;
     }
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantHint },
+    const tenant = await this.prisma.tenant.create({
+      data: { name: profile.name.trim(), slug },
     });
-    if (!tenant) {
-      throw new UnauthorizedException({
-        code: 'OAUTH_INVALID_TENANT',
-        message: 'Tenant inválido para cadastro via OAuth.',
-      });
-    }
     const user = await this.prisma.user.create({
       data: {
         tenantId: tenant.id,
         name: profile.name,
         email: profile.email,
-        role: 'OPERATOR',
+        role: 'ADMIN',
         oauthAccounts: {
           create: {
             provider: profile.provider,
@@ -257,9 +265,20 @@ export class OAuthService {
   ): Promise<T> {
     const res = await fetch(url, init);
     if (!res.ok) {
+      const providerUrl = new URL(url);
+      const provider = `${providerUrl.hostname}${providerUrl.pathname}`;
+      const responseBody = await res.text();
+      let providerMessage: string | undefined;
+      try {
+        const parsed = JSON.parse(responseBody) as { message?: unknown };
+        providerMessage =
+          typeof parsed.message === 'string' ? parsed.message : undefined;
+      } catch {
+        providerMessage = undefined;
+      }
       throw new UnauthorizedException({
         code: 'OAUTH_PROVIDER_ERROR',
-        message: 'Falha na comunicação com o provedor OAuth.',
+        message: `O provedor OAuth recusou a requisição (${provider}, HTTP ${res.status}${providerMessage ? `: ${providerMessage}` : ''}).`,
       });
     }
     return (await res.json()) as T;

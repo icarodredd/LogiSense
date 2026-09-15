@@ -1,4 +1,3 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '../../config/configuration.js';
@@ -29,6 +28,7 @@ function buildService() {
     },
     tenant: {
       findUnique: vi.fn(),
+      create: vi.fn(),
     },
   };
   const config = new ConfigService({ oauth: oauthConfig });
@@ -98,39 +98,28 @@ describe('OAuthService — resolveUser (vinculação de contas)', () => {
     expect(prisma.oAuthAccount.create).not.toHaveBeenCalled();
   });
 
-  it('vincula ao usuário existente com mesmo e-mail (tenantHint respeitado)', async () => {
+  it('vincula ao usuário existente com mesmo e-mail', async () => {
     const { service, prisma } = buildService();
     prisma.oAuthAccount.findUnique.mockResolvedValue(null);
     prisma.user.findMany.mockResolvedValue([
       { id: 'u-other-tenant', tenantId: 't2', email: 'user@acme.com' },
       { id: 'u-target', tenantId: 't1', email: 'user@acme.com' },
     ]);
-    const result = await service.resolveUser(googleProfile, 't1');
-    expect(result.user.id).toBe('u-target');
+    const result = await service.resolveUser(googleProfile);
+    expect(result.user.id).toBe('u-other-tenant');
     expect(prisma.oAuthAccount.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ userId: 'u-target' }),
+        data: expect.objectContaining({ userId: 'u-other-tenant' }),
       }),
     );
   });
 
-  it('sem conta e sem tenantHint não cria usuário arbitrário', async () => {
+  it('cria tenant e usuário ADMIN no primeiro acesso', async () => {
     const { service, prisma } = buildService();
     prisma.oAuthAccount.findUnique.mockResolvedValue(null);
     prisma.user.findMany.mockResolvedValue([]);
-    await expect(service.resolveUser(googleProfile)).rejects.toThrowError(
-      expect.objectContaining({
-        response: expect.objectContaining({ code: 'OAUTH_NO_ACCOUNT' }),
-      }),
-    );
-    expect(prisma.user.create).not.toHaveBeenCalled();
-  });
-
-  it('cria OPERATOR apenas quando tenantHint é válido', async () => {
-    const { service, prisma } = buildService();
-    prisma.oAuthAccount.findUnique.mockResolvedValue(null);
-    prisma.user.findMany.mockResolvedValue([]);
-    prisma.tenant.findUnique.mockResolvedValue({ id: 't1' });
+    prisma.tenant.findUnique.mockResolvedValue(null);
+    prisma.tenant.create.mockResolvedValue({ id: 'new-tenant', name: 'User Google', slug: 'user-google' });
     prisma.user.create.mockImplementation(({ data }) =>
       Promise.resolve({
         ...data,
@@ -138,23 +127,15 @@ describe('OAuthService — resolveUser (vinculação de contas)', () => {
         oauthAccounts: undefined,
       }),
     );
-    const result = await service.resolveUser(googleProfile, 't1');
+    const result = await service.resolveUser(googleProfile);
     expect(result.created).toBe(true);
+    expect(prisma.tenant.create).toHaveBeenCalledWith({
+      data: { name: 'User Google', slug: 'user-google' },
+    });
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ tenantId: 't1', role: 'OPERATOR' }),
+        data: expect.objectContaining({ tenantId: 'new-tenant', role: 'ADMIN' }),
       }),
     );
-  });
-
-  it('tenantHint inválido rejeita com OAUTH_INVALID_TENANT', async () => {
-    const { service, prisma } = buildService();
-    prisma.oAuthAccount.findUnique.mockResolvedValue(null);
-    prisma.user.findMany.mockResolvedValue([]);
-    prisma.tenant.findUnique.mockResolvedValue(null);
-    await expect(service.resolveUser(googleProfile, 'nao-existe')).rejects.toThrowError(
-      UnauthorizedException,
-    );
-    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 });

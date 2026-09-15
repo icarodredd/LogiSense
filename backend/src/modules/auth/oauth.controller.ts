@@ -52,7 +52,6 @@ export class OAuthController {
   @Get(':provider/authorize')
   async authorize(
     @Param('provider') provider: string,
-    @Query('tenantId') tenantId: string | undefined,
     @Res() res: Response,
   ) {
     if (!isProvider(provider)) {
@@ -68,7 +67,7 @@ export class OAuthController {
       });
     }
     const state = randomBytes(24).toString('hex');
-    const payload = JSON.stringify({ tenantId: tenantId ?? null });
+    const payload = JSON.stringify({ flow: 'login_or_signup' });
     await this.redis.getClient().set(
       `oauth:state:${state}`,
       payload,
@@ -108,10 +107,10 @@ export class OAuthController {
       });
     }
     await this.redis.getClient().del(stateKey);
-    const { tenantId } = JSON.parse(raw) as { tenantId: string | null };
+    JSON.parse(raw) as { flow: string };
 
     const profile = await this.oauth.exchangeCodeForProfile(provider, code);
-    const resolved = await this.oauth.resolveUser(profile, tenantId ?? undefined);
+    const resolved = await this.oauth.resolveUser(profile);
     if (resolved.user.status !== 'ACTIVE') {
       throw new UnauthorizedException({
         code: 'ACCOUNT_SUSPENDED',

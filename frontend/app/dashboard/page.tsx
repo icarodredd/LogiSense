@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BarChart3, Bell, ChevronDown, CircleHelp, FileUp, LayoutDashboard, LogOut, Menu, PackageSearch, Route, Settings, Sparkles, Truck, Users, X } from "lucide-react";
+import { ArrowRight, BarChart3, ChevronDown, CircleHelp, FileUp, LayoutDashboard, LogOut, Menu, PackageSearch, Route, Settings, Sparkles, Truck, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api, type AuthUser, type DashboardCarrier, type DashboardOverview, type DashboardRoute } from "../../lib/api";
 
@@ -25,21 +25,20 @@ function Metric({ label, value, detail, tone = "" }: { label: string; value: str
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const cachedSession = api.cachedSession();
+  const [user, setUser] = useState<AuthUser | null>(cachedSession?.user ?? null);
+  const [tenant, setTenant] = useState<{ name: string } | null>(cachedSession?.tenant ?? null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [carriers, setCarriers] = useState<DashboardCarrier[]>([]);
   const [routes, setRoutes] = useState<DashboardRoute[]>([]);
   const [error, setError] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.me(), api.overview(), api.carriers(), api.routes()])
-      .then(([session, overviewData, carriersData, routesData]) => {
-        setUser(session.user);
-        setOverview(overviewData);
-        setCarriers(carriersData);
-        setRoutes(routesData);
-      })
+    api.me().then((session) => { setUser(session.user); setTenant(session.tenant); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Sua sessão não está disponível."));
+    Promise.all([api.overview(), api.carriers(), api.routes()])
+      .then(([overviewData, carriersData, routesData]) => { setOverview(overviewData); setCarriers(carriersData); setRoutes(routesData); })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar a visão geral."));
   }, []);
 
@@ -50,17 +49,18 @@ export default function DashboardPage() {
     await api.logout().catch(() => undefined);
     router.push("/login");
   }
+  const roleLabel = user?.role === "ADMIN" ? "Administrador" : user?.role === "MANAGER" ? "Gestor" : "Operador";
 
   return <div className="app-shell">
     <aside className={`app-sidebar ${mobileNav ? "is-open" : ""}`}>
       <div className="sidebar-head"><Link href="/" className="brand-mark"><span className="brand-symbol">L</span><span>LogiSense</span></Link><button className="icon-button mobile-close" onClick={() => setMobileNav(false)} aria-label="Fechar menu"><X size={18} /></button></div>
-      <div className="sidebar-tenant"><span className="tenant-avatar">{user?.name?.slice(0, 1).toUpperCase() ?? "L"}</span><span><small>Operação</small><strong>{user?.name ?? "Carregando..."}</strong></span><ChevronDown size={14} /></div>
+      <div className="sidebar-workspace"><button className="sidebar-tenant" onClick={() => setWorkspaceOpen((current) => !current)} aria-expanded={workspaceOpen}><span className="tenant-avatar">{(tenant?.name ?? user?.name ?? "L").slice(0, 1).toUpperCase()}</span><span><small>Workspace</small><strong>{tenant?.name ?? (error ? "Workspace indisponível" : "Carregando...")}</strong></span><ChevronDown size={14} className={workspaceOpen ? "rotate-180" : ""} /></button>{workspaceOpen && <div className="workspace-menu"><strong>{tenant?.name ?? "Workspace"}</strong><span>{user?.email ?? "Sessão indisponível"}</span><Link href="/settings" onClick={() => setWorkspaceOpen(false)}>Configurações</Link></div>}</div>
       <nav className="sidebar-nav"><span className="nav-section-label">Workspace</span>{navItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={href === "/dashboard" ? "active" : ""} onClick={() => setMobileNav(false)}><Icon size={17} /><span>{label}</span></Link>)}<span className="nav-section-label nav-admin-label">Gestão</span>{adminItems.map(({ href, label, icon: Icon }) => <Link key={href} href={href} onClick={() => setMobileNav(false)}><Icon size={17} /><span>{label}</span></Link>)}</nav>
       <div className="sidebar-bottom"><Link href="/settings"><Settings size={17} /> Configurações</Link><button onClick={logout}><LogOut size={17} /> Sair</button></div>
     </aside>
     {mobileNav && <button className="sidebar-overlay" onClick={() => setMobileNav(false)} aria-label="Fechar menu" />}
     <main className="app-main">
-      <header className="app-topbar"><button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Abrir menu"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>Visão geral</strong></div><div className="topbar-actions"><button className="icon-button" aria-label="Notificações"><Bell size={18} /><i /></button><div className="topbar-user"><span>{user?.name?.slice(0, 1).toUpperCase() ?? "L"}</span><div><strong>{user?.name ?? "Usuário"}</strong><small>{user?.role === "ADMIN" ? "Administrador" : "Operação"}</small></div></div></div></header>
+      <header className="app-topbar"><button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Abrir menu"><Menu size={20} /></button><div className="breadcrumbs"><span>Workspace</span><b>/</b><strong>Visão geral</strong></div><div className="topbar-actions"><div className="topbar-user"><span>{user?.name?.slice(0, 1).toUpperCase() ?? "L"}</span><div><strong>{user?.name ?? (error ? "Sessão indisponível" : "Carregando...")}</strong><small>{roleLabel}</small></div></div></div></header>
       <div className="content-wrap">
         <div className="page-heading"><div><span className="eyebrow">Terça-feira, 15 de setembro</span><h1>Visão geral</h1><p>Acompanhe o que está acontecendo na sua operação.</p></div><Link href="/simulations/new" className="button button-primary"><Route size={16} /> Nova simulação</Link></div>
         {error && <div className="callout error-callout">{error} <Link href="/login">Voltar para o login</Link></div>}

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Inject,
   NotFoundException,
@@ -101,12 +102,23 @@ export class AuthController {
   }
 
   @Get('me')
+  @Header('Cache-Control', 'no-store')
   async me(@CurrentUser() user: AuthenticatedUser) {
+    const profile = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, tenantId: true, name: true, email: true, role: true },
+    });
+    if (!profile) {
+      throw new UnauthorizedException({
+        code: 'UNAUTHENTICATED',
+        message: 'Sessão inválida.',
+      });
+    }
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId },
       select: { id: true, name: true, slug: true },
     });
-    return { user, tenant };
+    return { user: profile, tenant };
   }
 
   // ---------------- MFA/TOTP (AGENTS.md §16) ----------------
