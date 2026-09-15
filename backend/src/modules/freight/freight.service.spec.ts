@@ -10,14 +10,17 @@ const carrier = {
   riskPercent: 0.005,
   cubingFactor: 6000,
   active: true,
-} as never;
+};
+
+type CarrierInput = Parameters<FreightService['calculate']>[0];
 
 const freight = new FreightService();
+const carrierInput = carrier as unknown as CarrierInput;
 const DISCOUNT_PCT = 0.05;
 
 describe('FreightService — cálculo', () => {
    it('calcula custo total corretamente (carga leve)', () => {
-    const result = freight.calculate(carrier, {
+    const result = freight.calculate(carrierInput, {
       weightKg: 100,
       lengthCm: 100,
       widthCm: 100,
@@ -34,7 +37,7 @@ describe('FreightService — cálculo', () => {
   });
 
   it('usa peso cubado quando maior que peso real', () => {
-    const result = freight.calculate(carrier, {
+    const result = freight.calculate(carrierInput, {
       weightKg: 10,
       lengthCm: 200,
       widthCm: 150,
@@ -46,7 +49,7 @@ describe('FreightService — cálculo', () => {
   });
 
   it('aplica desconto de 5% para carga pesada (>500kg)', () => {
-    const light = freight.calculate(carrier, {
+    const light = freight.calculate(carrierInput, {
       weightKg: 499,
       lengthCm: 100,
       widthCm: 100,
@@ -54,7 +57,7 @@ describe('FreightService — cálculo', () => {
       cargoValue: 1000,
       distanceKm: 100,
     });
-    const heavy = freight.calculate(carrier, {
+    const heavy = freight.calculate(carrierInput, {
       weightKg: 501,
       lengthCm: 100,
       widthCm: 100,
@@ -78,7 +81,11 @@ describe('FreightService — cálculo', () => {
   });
 
   it('arredonda para 2 casas decimais', () => {
-    const c = { ...carrier, pricePerKg: 1.3333, pricePerKm: 0.5555 };
+    const c: CarrierInput = {
+      ...carrierInput,
+      pricePerKg: 1.3333 as unknown as CarrierInput['pricePerKg'],
+      pricePerKm: 0.5555 as unknown as CarrierInput['pricePerKm'],
+    };
     const result = freight.calculate(c, {
       weightKg: 10,
       lengthCm: 10,

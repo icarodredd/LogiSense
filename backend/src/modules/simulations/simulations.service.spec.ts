@@ -1,7 +1,5 @@
-import {
-  NotFoundException,
-} from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { NotFoundException } from '@nestjs/common';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
 import { SimulationsService } from './simulations.service.js';
 import { FreightService } from '../freight/freight.service.js';
@@ -17,28 +15,33 @@ const auditCtx = { ip: '127.0.0.1' };
 
 function setup(overrides: {
   freight?: FreightService;
-  prismaSimulation?: Record<string, unknown>;
-  prismaCarrier?: Record<string, unknown>;
-  prismaCustomer?: Record<string, unknown>;
+  prismaSimulation?: Record<string, Mock>;
+  prismaCarrier?: Record<string, Mock>;
+  prismaCustomer?: Record<string, Mock>;
 } = {}) {
   const freight = overrides.freight ?? new FreightService();
   const prisma = {
-    $transaction: vi.fn(async (fn) => fn({
-      freightSimulation: { create: vi.fn().mockResolvedValue({ id: 's1' }) },
-      simulationQuote: { createMany: vi.fn() },
-    })),
-    customer: overrides.prismaCustomer ?? {
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        freightSimulation: { create: vi.fn().mockResolvedValue({ id: 's1' }) },
+        simulationQuote: { createMany: vi.fn() },
+      }),
+    ),
+    customer: {
       findFirst: vi.fn(),
+      ...overrides.prismaCustomer,
     },
-    carrier: overrides.prismaCarrier ?? {
+    carrier: {
       findMany: vi.fn(),
+      ...overrides.prismaCarrier,
     },
-    freightSimulation: overrides.prismaSimulation ?? {
+    freightSimulation: {
       create: vi.fn(),
       count: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      ...overrides.prismaSimulation,
     },
     simulationQuote: {
       createMany: vi.fn(),
@@ -51,8 +54,8 @@ function setup(overrides: {
 
 describe('SimulationsService — create', () => {
   it('rejeita customerId de outro tenant', async () => {
-    const { service } = setup();
-    service['prisma'].customer.findFirst.mockResolvedValue(null);
+    const { service, prisma } = setup();
+    prisma.customer.findFirst.mockResolvedValue(null);
     await expect(
       service.create(me, {
         origin: 'São Paulo',

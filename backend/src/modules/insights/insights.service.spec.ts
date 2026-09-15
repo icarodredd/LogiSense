@@ -74,10 +74,10 @@ describe('InsightsService — regenerate', () => {
     const fourWeeksAgo = new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
     const eightWeeksAgo = new Date(now.getTime() - 8 * 7 * 24 * 60 * 60 * 1000);
     const sims = [
-      { id: 's1', createdAt: eightWeeksAgo, quotes: [{ totalCost: 7000, isCheapest: true }] },
-      { id: 's2', createdAt: eightWeeksAgo, quotes: [{ totalCost: 7000, isCheapest: true }] },
-      { id: 's3', createdAt: fourWeeksAgo, quotes: [{ totalCost: 5000, isCheapest: true }] },
-      { id: 's4', createdAt: fourWeeksAgo, quotes: [{ totalCost: 5000, isCheapest: true }] },
+      { id: 's1', createdAt: new Date(eightWeeksAgo.getTime() + 60_000), quotes: [{ totalCost: 7000, isCheapest: true }] },
+      { id: 's2', createdAt: new Date(eightWeeksAgo.getTime() + 60_000), quotes: [{ totalCost: 7000, isCheapest: true }] },
+      { id: 's3', createdAt: new Date(fourWeeksAgo.getTime() + 60_000), quotes: [{ totalCost: 5000, isCheapest: true }] },
+      { id: 's4', createdAt: new Date(fourWeeksAgo.getTime() + 60_000), quotes: [{ totalCost: 5000, isCheapest: true }] },
     ];
     const { service } = setup({ sims });
     const result = await service.regenerate(me);
