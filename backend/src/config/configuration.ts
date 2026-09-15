@@ -41,7 +41,10 @@ export default (): AppConfig => {
       .filter(Boolean),
     frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:3000',
     databaseUrl: process.env.DATABASE_URL,
-    redisUrl: process.env.REDIS_URL,
+    redisUrl: required(
+      'REDIS_URL',
+      isProduction ? undefined : 'redis://localhost:6379',
+    ),
     jwt: {
       // Secrets obrigatórios: falham no boot em vez de usar default inseguro.
       accessSecret: required('JWT_ACCESS_SECRET', isProduction ? undefined : 'dev-access-secret'),

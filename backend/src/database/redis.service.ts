@@ -12,7 +12,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     @Inject(AppLogger) private readonly logger: AppLogger,
   ) {
     const url = config.get<string>('redisUrl', { infer: true });
-    this.client = new Redis(url ?? 'redis://localhost:6379', {
+    if (!url) {
+      throw new Error('Redis URL is not configured.');
+    }
+    this.client = new Redis(url, {
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
     });
