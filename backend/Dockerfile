@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm exec prisma generate
+RUN mkdir -p /generated-prisma && \
+    cp -R node_modules/.pnpm/@prisma+client@*/node_modules/.prisma /generated-prisma/
 
 FROM base AS development
 EXPOSE 3001
@@ -32,5 +34,8 @@ RUN pnpm config set strict-dep-builds false
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /generated-prisma/.prisma /generated-prisma/.prisma
+RUN cp -R /generated-prisma/.prisma node_modules/.pnpm/@prisma+client@*/node_modules/ && \
+    rm -rf /generated-prisma
 EXPOSE 3001
 CMD ["node", "dist/main"]
