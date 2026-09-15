@@ -1,4 +1,5 @@
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/http/pagination.js';
 
 export enum ImportTypeValue {
   CUSTOMERS = 'CUSTOMERS',
@@ -18,18 +19,7 @@ export class CreateImportDto {
   type!: ImportTypeValue;
 }
 
-export class ListImportsQueryDto {
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  page?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number;
-
+export class ListImportsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(ImportStatusValue)
   status?: ImportStatusValue;
