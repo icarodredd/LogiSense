@@ -18,6 +18,7 @@ RUN pnpm build
 FROM node:22-alpine AS frontend-build
 
 RUN corepack enable pnpm
+RUN corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app/frontend
 
@@ -25,6 +26,9 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY frontend/ ./
+
+ARG NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN pnpm build
 
