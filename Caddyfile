@@ -1,0 +1,9 @@
+:{$PORT} {
+    handle /api/* {
+        reverse_proxy localhost:3001
+    }
+
+    handle {
+        reverse_proxy localhost:3000
+    }
+}
