@@ -40,14 +40,18 @@ const makePrisma = () => {
 describe('ImportsService', () => {
   let service: ImportsService;
   let prisma: ReturnType<typeof makePrisma>;
-  let processor: { addImportJob: ReturnType<typeof vi.fn> };
+  let processor: { addImportJob: ReturnType<typeof vi.fn>; uploadDir: string };
   let audit: { log: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     prisma = makePrisma();
-    processor = { addImportJob: vi.fn().mockResolvedValue(undefined) };
+    processor = { addImportJob: vi.fn().mockResolvedValue(undefined), uploadDir: '/tmp/uploads' };
     audit = { log: vi.fn().mockResolvedValue(undefined) };
     service = new ImportsService(prisma as never, audit as never, processor as never);
+  });
+
+  it('onModuleInit garante que o diretório de uploads existe', async () => {
+    await expect(service.onModuleInit()).resolves.toBeUndefined();
   });
 
   it('create grava metadados reais (mimeType, storedPath) e enfileira job', async () => {

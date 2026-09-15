@@ -67,14 +67,15 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     command: sh -c "pnpm exec prisma migrate deploy && pnpm exec tsx watch ./src/main.ts"
 
-  # TODO(frontend): adicionar serviço `web` (Next.js) quando o frontend for dockerizado.
-  # web:
-  #   build:
-  #     context: ./frontend
-  #   ports:
-  #     - '${WEB_PORT:-3000}:3000'
-  #   depends_on:
-  #     - api
+  web:
+    build:
+      context: ./frontend
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
 
 volumes:
   mysql-data:

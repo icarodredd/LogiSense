@@ -4,6 +4,7 @@ import { RedisService } from '../database/redis.service.js';
 import { QUEUE_NAMES } from './queue.constants.js';
 import { ImportWorker } from '../modules/imports/import.worker.js';
 import { ImportType } from '@prisma/client';
+import { join } from 'node:path';
 import type { AuditContext } from '../modules/audit/audit.service.js';
 
 export interface ImportJobData {
@@ -18,8 +19,11 @@ export interface ImportJobData {
   auditCtx?: Pick<AuditContext, 'ip' | 'userAgent' | 'requestId'>;
 }
 
+export const IMPORT_UPLOAD_DIR = join(process.cwd(), 'uploads', 'imports');
+
 @Injectable()
 export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
+  readonly uploadDir = IMPORT_UPLOAD_DIR;
   private worker: Worker | null = null;
 
   constructor(

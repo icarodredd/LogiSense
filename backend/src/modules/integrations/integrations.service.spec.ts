@@ -187,6 +187,28 @@ describe('IntegrationsService — Open-Meteo', () => {
     );
   });
 
+  it('getWeather retorna erro padronizado quando a API externa excede o timeout', async () => {
+    const service = buildService();
+    global.fetch = vi.fn().mockImplementation(async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+
+    await expect(service.getWeather(-23.5, -46.6)).rejects.toThrowError(
+      expect.objectContaining({ response: expect.objectContaining({ code: 'WEATHER_SERVICE_UNAVAILABLE' }) }),
+    );
+  });
+
+  it('lookupCep retorna erro padronizado quando ViaCEP excede o timeout', async () => {
+    const service = buildService();
+    global.fetch = vi.fn().mockImplementation(async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+
+    await expect(service.lookupCep('01000000')).rejects.toThrowError(
+      expect.objectContaining({ response: expect.objectContaining({ code: 'CEP_SERVICE_ERROR' }) }),
+    );
+  });
+
   it('getWeather retorna erro quando sem dados de clima', async () => {
     const service = buildService();
     global.fetch = vi.fn().mockResolvedValue({

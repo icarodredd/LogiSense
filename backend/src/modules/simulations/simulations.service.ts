@@ -205,4 +205,74 @@ export class SimulationsService {
     await this.prisma.freightSimulation.delete({ where: { id: simulation.id } });
     return { deleted: true };
   }
+
+  async history(currentUser: AuthenticatedUser, query: ListSimulationsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where = {
+      tenantId: currentUser.tenantId,
+      ...(query.search
+        ? {
+            OR: [
+              { origin: { contains: query.search } },
+              { destination: { contains: query.search } },
+            ],
+          }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+    };
+    const [total, simulations] = await Promise.all([
+      this.prisma.freightSimulation.count({ where }),
+      this.prisma.freightSimulation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          quotes: { include: { carrier: { select: { id: true, name: true } } } },
+          customer: { select: { id: true, name: true } },
+          user: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    const items = simulations.map((sim) => {
+      const quotes = sim.quotes.map((q) => ({
+        id: q.id,
+        carrierId: q.carrierId,
+        carrierName: q.carrier.name,
+        freightCost: q.freightCost,
+        additionalFees: q.additionalFees,
+        totalCost: q.totalCost,
+        estimatedDays: q.estimatedDays,
+        isCheapest: q.isCheapest,
+      }));
+      const cheapest = quotes.find((q) => q.isCheapest);
+      const selected = sim.selectedCarrierId
+        ? quotes.find((q) => q.carrierId === sim.selectedCarrierId)
+        : null;
+      return {
+        id: sim.id,
+        origin: sim.origin,
+        destination: sim.destination,
+        weightKg: sim.weightKg,
+        cargoValue: sim.cargoValue,
+        distanceKm: sim.distanceKm,
+        status: sim.status,
+        quotes,
+        cheapestQuote: cheapest ?? null,
+        selectedCarrierId: sim.selectedCarrierId,
+        selectedQuote: selected ?? null,
+        potentialSavings:
+          cheapest && selected && cheapest.totalCost < selected.totalCost
+            ? Number(selected.totalCost) - Number(cheapest.totalCost)
+            : 0,
+        customer: sim.customer ? { id: sim.customer.id, name: sim.customer.name } : null,
+        user: sim.user ? { id: sim.user.id, name: sim.user.name } : null,
+        createdAt: sim.createdAt,
+      };
+    });
+
+    return { items, total, page, limit };
+  }
 }

@@ -54,11 +54,20 @@ export class SimulationsController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'MANAGER')
-  remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
-    return this.simulations.remove(user, id);
-  }
+    @Roles('ADMIN', 'MANAGER')
+    remove(
+      @CurrentUser() user: AuthenticatedUser,
+      @Param('id') id: string,
+    ) {
+      return this.simulations.remove(user, id);
+    }
+
+  @Get('history')
+    @Roles('ADMIN', 'MANAGER', 'OPERATOR')
+    history(
+      @CurrentUser() user: AuthenticatedUser,
+      @Query() query: ListSimulationsQueryDto,
+    ) {
+      return this.simulations.history(user, query);
+    }
 }

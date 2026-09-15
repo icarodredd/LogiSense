@@ -13,12 +13,7 @@ import { AppLogger } from '../common/logger/app-logger.service.js';
 import { WsAuthService } from './ws-auth.service.js';
 import { ImportRoomService } from './import-room.service.js';
 
-@WsGateway({
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
-})
+@WsGateway()
 @Injectable()
 export class WebSocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

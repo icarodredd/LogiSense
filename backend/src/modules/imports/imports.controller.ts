@@ -14,7 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
-import { extname, join } from 'node:path';
+import { extname } from 'node:path';
 import { diskStorage } from 'multer';
 import type { CreateImportDto, ListImportsQueryDto } from './import.dto.js';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
@@ -22,8 +22,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { extractAuditContext } from '../audit/audit-context.js';
 import { ImportsService } from './imports.service.js';
 import { IMPORT_ALLOWED_EXTENSIONS, IMPORT_MAX_SIZE_BYTES } from './import.dto.js';
-
-const UPLOAD_DIR = join(process.cwd(), 'uploads', 'imports');
+import { IMPORT_UPLOAD_DIR } from '../../queue/import.processor.js';
 
 @Controller('imports')
 export class ImportsController {
@@ -41,10 +40,16 @@ export class ImportsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'MANAGER', 'OPERATOR')
-  findById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.imports.findById(user, id);
-  }
+    @Roles('ADMIN', 'MANAGER', 'OPERATOR')
+    findById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+      return this.imports.findById(user, id);
+    }
+
+  @Post(':id/retry')
+    @Roles('ADMIN', 'MANAGER')
+    retry(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+      return this.imports.retry(user, id);
+    }
 
   @Post()
   @Roles('ADMIN', 'MANAGER')
@@ -52,7 +57,7 @@ export class ImportsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, cb) => {
-          cb(null, UPLOAD_DIR);
+          cb(null, IMPORT_UPLOAD_DIR);
         },
         filename: (_req, file, cb) => {
           const unique = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;

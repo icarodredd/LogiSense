@@ -37,6 +37,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @RateLimit(5, 60_000)
   @Post('register')
   async register(
     @Body() dto: RegisterDto,

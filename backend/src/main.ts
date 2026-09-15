@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { AppLogger } from './common/logger/app-logger.service.js';
+import { SocketIoAdapter } from './websocket/socket-io.adapter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -28,6 +29,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.useWebSocketAdapter(new SocketIoAdapter(app, configService));
 
   await app.listen(port);
   logger.log(`LogiSense API listening on :${port} (prefix /api)`, 'Bootstrap');

@@ -1,12 +1,33 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CepResponse } from './cep-response.dto.js';
 import { WeatherResponse } from './weather-response.dto.js';
 
 const VIACEP_BASE = 'https://viacep.com.br/ws';
 const OPENMETEO_BASE = 'https://api.open-meteo.com/v1/forecast';
+const EXTERNAL_API_TIMEOUT_MS = 5_000;
 
 @Injectable()
 export class IntegrationsService {
+  private async fetchJson(url: string, code: string, message: string): Promise<unknown> {
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(EXTERNAL_API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        throw new ServiceUnavailableException({ code, message });
+      }
+      return await res.json();
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      throw new ServiceUnavailableException({ code, message });
+    }
+  }
+
   async lookupCep(cep: string): Promise<CepResponse> {
     const normalized = cep.replace(/\D/g, '');
     if (!/^\d{8}$/.test(normalized)) {
@@ -16,15 +37,11 @@ export class IntegrationsService {
       });
     }
 
-    const res = await fetch(`${VIACEP_BASE}/${normalized}/json/`);
-    if (!res.ok) {
-      throw new BadRequestException({
-        code: 'CEP_SERVICE_ERROR',
-        message: 'Erro ao consultar o CEP.',
-      });
-    }
-
-    const data = (await res.json()) as Record<string, unknown> & { erro?: boolean };
+    const data = (await this.fetchJson(
+      `${VIACEP_BASE}/${normalized}/json/`,
+      'CEP_SERVICE_ERROR',
+      'Erro ao consultar o CEP.',
+    )) as Record<string, unknown> & { erro?: boolean };
     if (data.erro) {
       throw new NotFoundException({
         code: 'CEP_NOT_FOUND',
@@ -64,15 +81,11 @@ export class IntegrationsService {
     url.searchParams.set('longitude', String(lon));
     url.searchParams.set('current_weather', 'true');
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new BadRequestException({
-        code: 'WEATHER_SERVICE_UNAVAILABLE',
-        message: 'Serviço de clima indisponível.',
-      });
-    }
-
-    const data = (await res.json()) as Record<string, unknown> & {
+    const data = (await this.fetchJson(
+      url.toString(),
+      'WEATHER_SERVICE_UNAVAILABLE',
+      'Serviço de clima indisponível.',
+    )) as Record<string, unknown> & {
       current_weather?: {
         temperature: number;
         windspeed: number;
