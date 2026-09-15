@@ -5,7 +5,7 @@ RUN apk add --no-cache libc6-compat
 RUN corepack enable pnpm
 
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 RUN pnpm config set strict-dep-builds false
 RUN pnpm install --frozen-lockfile
@@ -26,7 +26,7 @@ FROM node:22-alpine AS production
 RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable pnpm
 
 
