@@ -1,11 +1,13 @@
 FROM node:22-alpine AS backend-build
 
 RUN apk add --no-cache libc6-compat
-RUN corepack enable pnpm
+RUN corepack enable && corepack prepare pnpm@11.15.1 --activate
 
 WORKDIR /app/backend
 
 COPY backend/package.json backend/pnpm-lock.yaml ./
+
+RUN pnpm config set ignore-scripts false
 RUN pnpm install --frozen-lockfile
 
 COPY backend/ ./
