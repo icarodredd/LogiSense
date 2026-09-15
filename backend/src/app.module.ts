@@ -27,7 +27,11 @@ import { WebSocketModule } from './websocket/websocket.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', 'backend/.env'],
+      load: [configuration],
+    }),
     RateLimitModule.forRoot({ limit: 120, ttlMs: 60_000 }),
     DatabaseModule,
     QueueModule,
