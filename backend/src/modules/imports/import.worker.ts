@@ -5,7 +5,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { AuditAction } from '../audit/audit-action.js';
 import { ImportStatus, ImportType } from '@prisma/client';
 import { parse } from 'csv-parse';
-import { Workbook } from 'exceljs';
+import ExcelJS from 'exceljs';
 import { createReadStream } from 'node:fs';
 import { mkdir, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -83,7 +83,8 @@ export class ImportWorker {
         }
 
         const processed = Math.min(i + BATCH_SIZE, rows.length);
-        const percentage = totalRows > 0 ? Math.round((processed / totalRows) * 100) : 100;
+        const percentage =
+          totalRows > 0 ? Math.round((processed / totalRows) * 100) : 100;
 
         await this.prisma.import.updateMany({
           where: { id: importId, tenantId },
@@ -131,14 +132,17 @@ export class ImportWorker {
     }
   }
 
-  async handleQueueFailure(jobData: {
-    importId: string;
-    tenantId: string;
-    userId?: string;
-    filename: string;
-    type: string;
-    auditCtx?: Pick<AuditContext, 'ip' | 'userAgent' | 'requestId'>;
-  }, error: Error) {
+  async handleQueueFailure(
+    jobData: {
+      importId: string;
+      tenantId: string;
+      userId?: string;
+      filename: string;
+      type: string;
+      auditCtx?: Pick<AuditContext, 'ip' | 'userAgent' | 'requestId'>;
+    },
+    error: Error,
+  ) {
     const message = error instanceof Error ? error.message : String(error);
     const existing = await this.prisma.import.findFirst({
       where: { id: jobData.importId, tenantId: jobData.tenantId },
@@ -164,7 +168,11 @@ export class ImportWorker {
       action: AuditAction.IMPORT_FAILED,
       entity: 'Import',
       entityId: jobData.importId,
-      metadata: { filename: jobData.filename, type: jobData.type, error: message },
+      metadata: {
+        filename: jobData.filename,
+        type: jobData.type,
+        error: message,
+      },
     });
 
     this.ws.emitImportProgress(jobData.importId, {
@@ -211,11 +219,15 @@ export class ImportWorker {
     });
   }
 
-  private async processCustomerRow(tenantId: string, row: Row): Promise<boolean> {
+  private async processCustomerRow(
+    tenantId: string,
+    row: Row,
+  ): Promise<boolean> {
     const name = (row.name ?? row.nome ?? '').trim();
     if (!name) return false;
 
-    const document = (row.document ?? row.documento ?? '').replace(/\D/g, '') || null;
+    const document =
+      (row.document ?? row.documento ?? '').replace(/\D/g, '') || null;
     const cep = (row.cep ?? '').replace(/\D/g, '') || null;
     const email = (row.email ?? '').trim() || null;
     const phone = (row.phone ?? row.telefone ?? '').trim() || null;
@@ -248,7 +260,10 @@ export class ImportWorker {
     return true;
   }
 
-  private async processCarrierRow(tenantId: string, row: Row): Promise<boolean> {
+  private async processCarrierRow(
+    tenantId: string,
+    row: Row,
+  ): Promise<boolean> {
     const name = (row.name ?? row.nome ?? '').trim();
     if (!name) return false;
 
@@ -263,7 +278,8 @@ export class ImportWorker {
     const pricePerKm = toNumber(row.pricePerKm ?? row.precoPorKm);
     const riskPercent = toNumber(row.riskPercent ?? row.percentualRisco);
     const cubingFactorRaw = toNumber(row.cubingFactor ?? row.fatorCubagem);
-    const document = (row.document ?? row.documento ?? '').replace(/\D/g, '') || null;
+    const document =
+      (row.document ?? row.documento ?? '').replace(/\D/g, '') || null;
     const email = (row.email ?? '').trim() || null;
     const phone = (row.phone ?? row.telefone ?? '').trim() || null;
 
@@ -291,7 +307,8 @@ export class ImportWorker {
     if (pricePerKg !== null) data.pricePerKg = pricePerKg;
     if (pricePerKm !== null) data.pricePerKm = pricePerKm;
     if (riskPercent !== null) data.riskPercent = riskPercent;
-    if (cubingFactorRaw !== null) data.cubingFactor = Math.round(cubingFactorRaw);
+    if (cubingFactorRaw !== null)
+      data.cubingFactor = Math.round(cubingFactorRaw);
 
     if (existing) {
       await this.prisma.carrier.update({ where: { id: existing.id }, data });
@@ -336,7 +353,7 @@ export class ImportWorker {
   }
 
   private async parseXlsx(filePath: string): Promise<Row[]> {
-    const workbook = new Workbook();
+    const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
     const sheet = workbook.worksheets[0];
     if (!sheet) return [];

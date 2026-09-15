@@ -12,6 +12,7 @@ describe('Health (e2e)', () => {
   const fakeRedis = () => ({
     ping: async () => 'PONG',
     getClient: () => ({ status: 'ready' }),
+    onModuleInit: async () => {},
   });
 
   beforeEach(async () => {
@@ -23,7 +24,7 @@ describe('Health (e2e)', () => {
       .overrideProvider(RedisService)
       .useValue(fakeRedis())
       .overrideProvider(ImportProcessor)
-      .useValue({ addImportJob: async () => undefined })
+      .useValue({ addImportJob: async () => undefined, uploadDir: '/tmp/uploads' })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -59,7 +60,7 @@ describe('Health (e2e)', () => {
       .overrideProvider(RedisService)
       .useValue(fakeRedis())
       .overrideProvider(ImportProcessor)
-      .useValue({ addImportJob: async () => undefined })
+      .useValue({ addImportJob: async () => undefined, uploadDir: '/tmp/uploads' })
       .compile();
 
     const degradedApp = moduleFixture.createNestApplication();

@@ -6,6 +6,7 @@ import { ImportWorker } from '../modules/imports/import.worker.js';
 import { ImportType } from '@prisma/client';
 import { join } from 'node:path';
 import type { AuditContext } from '../modules/audit/audit.service.js';
+import { AppLogger } from '../common/logger/app-logger.service.js';
 
 export interface ImportJobData {
   importId: string;
@@ -30,35 +31,38 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
     @Inject('IMPORT_QUEUE') private readonly queue: Queue,
     @Inject(RedisService) private readonly redis: RedisService,
     @Inject(ImportWorker) private readonly importWorker: ImportWorker,
+    @Inject(AppLogger) private readonly logger: AppLogger,
   ) {}
 
   async onModuleInit() {
     const connection = this.redis.getClient();
-    if (connection.status !== 'ready') {
-      await connection.connect();
+    try {
+      if (connection.status !== 'ready') {
+        await connection.connect();
+      }
+
+      this.worker = new Worker(
+        QUEUE_NAMES.IMPORT_PROCESSING,
+        async (job: Job<ImportJobData>) => {
+          const data = job.data;
+          await this.importWorker.process(
+            data.importId,
+            data.tenantId,
+            data.filePath,
+            data.mimeType,
+            data.type as ImportType,
+            data.auditCtx ?? {},
+            data.userId,
+          );
+        },
+        { connection, concurrency: 2 },
+      );
+    } catch (error) {
+      this.logger.warn(`Redis unavailable for queue worker: ${String(error)}`, 'ImportProcessor');
     }
 
-    this.worker = new Worker(
-      QUEUE_NAMES.IMPORT_PROCESSING,
-      async (job: Job<ImportJobData>) => {
-        const data = job.data;
-        await this.importWorker.process(
-          data.importId,
-          data.tenantId,
-          data.filePath,
-          data.mimeType,
-          data.type as ImportType,
-          data.auditCtx ?? {},
-          data.userId,
-        );
-      },
-      { connection, concurrency: 2 },
-    );
-
-    this.worker.on('failed', (job, err) => {
+    this.worker?.on('failed', (job, err) => {
       if (!job) return;
-      // ImportWorker já marca o Import como FAILED no banco;
-      // este log cobre falhas de enfileiramento/execução fora do worker.
       void this.importWorker.handleQueueFailure(
         job.data as ImportJobData,
         err,
@@ -76,8 +80,12 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.worker) {
-      await this.worker.close();
+      await this.worker.close().catch(() => undefined);
     }
-    await this.queue.close();
+    try {
+      await this.queue.close();
+    } catch {
+      // ignore queue close errors on shutdown
+    }
   }
 }

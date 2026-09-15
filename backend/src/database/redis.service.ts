@@ -1,13 +1,16 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import { AppLogger } from '../common/logger/app-logger.service.js';
 
 @Injectable()
-export class RedisService implements OnModuleDestroy {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly client: Redis;
 
-  constructor(@Inject(ConfigService) config: ConfigService, @Inject(AppLogger) logger: AppLogger) {
+  constructor(
+    @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(AppLogger) private readonly logger: AppLogger,
+  ) {
     const url = config.get<string>('redisUrl', { infer: true });
     this.client = new Redis(url ?? 'redis://localhost:6379', {
       lazyConnect: true,
@@ -15,8 +18,17 @@ export class RedisService implements OnModuleDestroy {
       enableReadyCheck: true,
     });
     this.client.on('error', (error: unknown) => {
-      logger.warn(`Redis error: ${String(error)}`, 'RedisService');
+      this.logger.warn(`Redis error: ${String(error)}`, 'RedisService');
     });
+  }
+
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.client.connect();
+      this.logger.log('Connected to Redis', 'RedisService');
+    } catch (error) {
+      this.logger.warn(`Redis unavailable: ${String(error)}`, 'RedisService');
+    }
   }
 
   getClient(): Redis {
@@ -24,12 +36,23 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async ping(): Promise<string> {
-    return this.client.ping();
+    try {
+      if (this.client.status !== 'ready') {
+        await this.client.connect();
+      }
+      return await this.client.ping();
+    } catch {
+      throw new Error('Redis connection is closed.');
+    }
   }
 
   async onModuleDestroy() {
-    if (this.client.status !== 'end') {
-      this.client.disconnect();
+    try {
+      if (this.client.status !== 'end' && this.client.status !== 'close') {
+        await this.client.disconnect();
+      }
+    } catch {
+      // ignore cleanup errors on shutdown
     }
   }
 }

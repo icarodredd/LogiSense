@@ -14,8 +14,12 @@ import { Queue } from 'bullmq';
       provide: 'IMPORT_QUEUE',
       useFactory: async (redis: RedisService) => {
         const client = redis.getClient();
-        if (client.status !== 'ready') {
-          await client.connect();
+        try {
+          if (client.status !== 'ready') {
+            await client.connect();
+          }
+        } catch {
+          // Redis unavailable; Queue will retry when connection is restored.
         }
         return new Queue(QUEUE_NAMES.IMPORT_PROCESSING, {
           connection: client,
