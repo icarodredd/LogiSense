@@ -25,9 +25,8 @@ function Metric({ label, value, detail, tone = "" }: { label: string; value: str
 
 export default function DashboardPage() {
   const router = useRouter();
-  const cachedSession = api.cachedSession();
-  const [user, setUser] = useState<AuthUser | null>(cachedSession?.user ?? null);
-  const [tenant, setTenant] = useState<{ name: string } | null>(cachedSession?.tenant ?? null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [tenant, setTenant] = useState<{ name: string } | null>(null);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [carriers, setCarriers] = useState<DashboardCarrier[]>([]);
   const [routes, setRoutes] = useState<DashboardRoute[]>([]);
