@@ -37,6 +37,15 @@ export class SimulationsController {
     return this.simulations.list(user, query);
   }
 
+  @Get('history')
+  @Roles('ADMIN', 'MANAGER', 'OPERATOR')
+  history(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListSimulationsQueryDto,
+  ) {
+    return this.simulations.history(user, query);
+  }
+
   @Get(':id')
   @Roles('ADMIN', 'MANAGER', 'OPERATOR')
   findById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
@@ -54,20 +63,8 @@ export class SimulationsController {
   }
 
   @Delete(':id')
-    @Roles('ADMIN', 'MANAGER')
-    remove(
-      @CurrentUser() user: AuthenticatedUser,
-      @Param('id') id: string,
-    ) {
-      return this.simulations.remove(user, id);
-    }
-
-  @Get('history')
-    @Roles('ADMIN', 'MANAGER', 'OPERATOR')
-    history(
-      @CurrentUser() user: AuthenticatedUser,
-      @Query() query: ListSimulationsQueryDto,
-    ) {
-      return this.simulations.history(user, query);
-    }
+  @Roles('ADMIN', 'MANAGER')
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.simulations.remove(user, id);
+  }
 }

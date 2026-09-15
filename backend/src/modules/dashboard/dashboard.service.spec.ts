@@ -68,6 +68,22 @@ describe('DashboardService — overview', () => {
     const result = await service.overview(me);
     expect(result.potentialSavings).toBe(500);
   });
+
+  it('não falha quando há simulação sem cotações', async () => {
+    const { service } = setup([
+      {
+        id: 'empty',
+        origin: 'SP',
+        destination: 'CE',
+        createdAt: new Date('2026-08-01'),
+        quotes: [],
+      },
+    ]);
+    const result = await service.overview(me);
+    expect(result.totalSimulations).toBe(1);
+    expect(result.avgFreight).toBe(0);
+    expect(result.trendWeekly).toEqual([]);
+  });
 });
 
 describe('DashboardService — carriers', () => {

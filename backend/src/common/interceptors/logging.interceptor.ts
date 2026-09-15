@@ -43,6 +43,10 @@ export class LoggingInterceptor implements NestInterceptor {
             typeof error.status === 'number'
               ? error.status
               : 500;
+          const errorDetails =
+            error instanceof Error
+              ? { name: error.name, message: error.message }
+              : { value: String(error) };
           const log =
             statusCode >= 500
               ? this.logger.error.bind(this.logger)
@@ -55,6 +59,7 @@ export class LoggingInterceptor implements NestInterceptor {
               path: originalUrl,
               statusCode,
               durationMs: Date.now() - startedAt,
+              error: errorDetails,
             },
             'HttpRequest',
           );

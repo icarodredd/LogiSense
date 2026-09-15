@@ -33,6 +33,30 @@ docker compose up -d --build
 curl http://localhost:3001/api/health
 ```
 
+Antes de testar rotas autenticadas, confirme que o health check indica MySQL e
+Redis como `up`:
+
+```bash
+curl -i http://localhost:3001/api/health
+docker compose logs --tail=200 api
+```
+
+Erros inesperados retornam apenas um envelope sanitizado com `requestId`. Use
+esse identificador para localizar a exceção original nos logs da API:
+
+```bash
+docker compose logs api | grep '<requestId>'
+```
+
+Se várias rotas autenticadas falharem ao mesmo tempo, verifique primeiro o
+MySQL e as migrations, pois o guard JWT consulta o usuário no banco antes de
+executar cada controller:
+
+```bash
+docker compose exec api pnpm exec prisma migrate status
+docker compose exec api pnpm exec prisma db seed
+```
+
 Para trocar apenas a porta publicada no host, use `API_PORT` na raiz:
 
 ```bash

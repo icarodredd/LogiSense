@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
-import { toPaginatedResponse } from '../../common/http/pagination.js';
+import { getPagination, toPaginatedResponse } from '../../common/http/pagination.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AuditAction } from '../audit/audit-action.js';
 import { AuditService, type AuditContext } from '../audit/audit.service.js';
@@ -142,8 +142,7 @@ export class SimulationsService {
   }
 
   async list(currentUser: AuthenticatedUser, query: ListSimulationsQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const { page, limit } = getPagination(query);
     const where = {
       tenantId: currentUser.tenantId,
       ...(query.search
@@ -163,6 +162,9 @@ export class SimulationsService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          quotes: { include: { carrier: { select: { id: true, name: true } } } },
+        },
       }),
     ]);
     return toPaginatedResponse(
@@ -207,8 +209,7 @@ export class SimulationsService {
   }
 
   async history(currentUser: AuthenticatedUser, query: ListSimulationsQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const { page, limit } = getPagination(query);
     const where = {
       tenantId: currentUser.tenantId,
       ...(query.search

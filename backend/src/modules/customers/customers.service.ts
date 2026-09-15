@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
-import { toPaginatedResponse } from '../../common/http/pagination.js';
+import { getPagination, toPaginatedResponse } from '../../common/http/pagination.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AuditAction } from '../audit/audit-action.js';
 import { AuditService, type AuditContext } from '../audit/audit.service.js';
@@ -21,8 +21,7 @@ export class CustomersService {
   ) {}
 
   async list(currentUser: AuthenticatedUser, query: ListCustomersQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const { page, limit } = getPagination(query);
     const where = {
       tenantId: currentUser.tenantId,
       ...(query.search

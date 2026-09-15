@@ -37,6 +37,15 @@ describe('InsightsService — regenerate', () => {
     expect(result).toEqual([]);
   });
 
+  it('ignora simulações sem cotações sem gerar erro', async () => {
+    const { service } = setup({
+      sims: [{ id: 'empty', createdAt: new Date('2026-08-01'), quotes: [] }],
+      quotes: [],
+      routes: [],
+    });
+    await expect(service.regenerate(me)).resolves.toBeInstanceOf(Array);
+  });
+
   it('gera insight de economia quando há economia potencial', async () => {
     const sims = [
       { id: 's1', createdAt: new Date('2026-08-01'), quotes: [

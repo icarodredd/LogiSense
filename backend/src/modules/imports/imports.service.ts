@@ -9,6 +9,7 @@ import { ImportProcessor } from '../../queue/import.processor.js';
 import { ImportStatus } from '@prisma/client';
 import { toImportResponse } from './import.presenter.js';
 import type { ImportFileMeta, ListImportsQueryDto } from './import.dto.js';
+import { getPagination } from '../../common/http/pagination.js';
 
 @Injectable()
 export class ImportsService implements OnModuleInit {
@@ -25,8 +26,7 @@ export class ImportsService implements OnModuleInit {
   }
 
   async list(currentUser: AuthenticatedUser, query: ListImportsQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const { page, limit } = getPagination(query);
     const where: Record<string, unknown> = {
       tenantId: currentUser.tenantId,
       ...(query.status ? { status: query.status } : {}),

@@ -58,6 +58,18 @@ export class DashboardService {
       .flatMap((s) => s.quotes.filter((q) => q.isCheapest).map((q) => toNumber(q.totalCost)));
 
     const allCosts = cheapestCosts.length > 0 ? cheapestCosts : simulations.flatMap((s) => s.quotes.map((q) => toNumber(q.totalCost)));
+    if (allCosts.length === 0) {
+      return {
+        totalSimulations: simulations.length,
+        avgFreight: 0,
+        minFreight: 0,
+        maxFreight: 0,
+        potentialSavings: 0,
+        carriersUsed: 0,
+        topRoutes: [],
+        trendWeekly: [],
+      };
+    }
 
     const avgFreight = allCosts.reduce((a, b) => a + b, 0) / allCosts.length;
     const minFreight = Math.min(...allCosts);
@@ -65,6 +77,7 @@ export class DashboardService {
 
     let potentialSavings = 0;
     for (const sim of simulations) {
+      if (sim.quotes.length === 0) continue;
       const cheapest = sim.quotes.reduce(
         (a, b) => (toNumber(a.totalCost) <= toNumber(b.totalCost) ? a : b),
       );
@@ -97,14 +110,17 @@ export class DashboardService {
       const key = startOfWeek.toISOString().slice(0, 10);
       const costs = sim.quotes.filter((q) => q.isCheapest).map((q) => toNumber(q.totalCost));
       if (!weeks.has(key)) weeks.set(key, []);
-      weeks.get(key)!.push(...costs);
+      if (costs.length > 0) weeks.get(key)!.push(...costs);
     }
     const trendWeekly = Array.from(weeks.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(-4)
       .map(([week, costs]) => ({
         week,
-        avgCost: Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 100) / 100,
+        avgCost:
+          costs.length > 0
+            ? Math.round((costs.reduce((a, b) => a + b, 0) / costs.length) * 100) / 100
+            : 0,
       }));
 
     return {

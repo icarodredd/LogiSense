@@ -103,6 +103,7 @@ export class InsightsService {
     let totalSavings = 0;
     for (const sim of sims) {
       const qList = sim.quotes;
+      if (qList.length === 0) continue;
       const cheapest = qList.reduce(
         (a, b) => (toNum(a.totalCost) <= toNum(b.totalCost) ? a : b),
       );

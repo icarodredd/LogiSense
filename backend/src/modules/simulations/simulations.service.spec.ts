@@ -143,6 +143,13 @@ describe('SimulationsService — isolamento por tenant', () => {
     expect(prisma.freightSimulation.count).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ tenantId: 'tenant-1' }) }),
     );
+    expect(prisma.freightSimulation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          quotes: { include: { carrier: { select: { id: true, name: true } } } },
+        },
+      }),
+    );
   });
 
   it('findById nunca retorna simulação de outro tenant', async () => {

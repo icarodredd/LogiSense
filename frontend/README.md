@@ -238,14 +238,15 @@ Ocultar ações não permitidas melhora a UX, mas nunca substitui a autorizaçã
 
 ### Autenticação e shell
 
-- [x] Login por e-mail e senha.
-- [x] Tratamento inicial de MFA.
-- [x] Cliente com cookies.
+- [x] Login por e-mail e senha com mensagens por código de erro.
+- [x] MFA como etapa explícita do login.
+- [x] Cliente com cookies, refresh automático e sessão expirada.
 - [x] Sidebar e topbar.
 - [x] Dashboard integrado.
-- [ ] Provider de sessão e refresh automático completo.
-- [ ] Cadastro, recuperação e OAuth.
-- [ ] Configuração completa de MFA.
+- [x] Cadastro de tenant e primeiro usuário.
+- [x] OAuth Google/GitHub com redirecionamento ao backend.
+- [x] Tela de recuperação informando a indisponibilidade do endpoint backend.
+- [ ] Configuração completa de MFA dentro de configurações.
 
 ### Operação
 
@@ -253,9 +254,9 @@ Ocultar ações não permitidas melhora a UX, mas nunca substitui a autorizaçã
 - [ ] Clientes: edição, detalhe, paginação e status.
 - [x] Transportadoras: listagem e busca.
 - [ ] Transportadoras: criação, edição, preços, ativação e exclusão.
-- [ ] Nova simulação.
-- [ ] Resultado comparativo de cotações.
-- [ ] Histórico e detalhe de simulações.
+- [x] Nova simulação.
+- [x] Resultado comparativo de cotações.
+- [x] Histórico e detalhe de simulações.
 
 ### Processamento e inteligência
 

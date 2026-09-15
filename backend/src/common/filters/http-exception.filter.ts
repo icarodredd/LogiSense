@@ -55,7 +55,25 @@ export class HttpExceptionFilter implements ExceptionFilter {
         if (parsed.message) message = parsed.message;
       }
     } else {
-      this.logger.error(exception, undefined, 'HttpExceptionFilter');
+      const error =
+        exception instanceof Error
+          ? {
+              name: exception.name,
+              message: exception.message,
+              stack: exception.stack,
+            }
+          : { value: String(exception) };
+      this.logger.error(
+        {
+          requestId: req.requestId,
+          method: req.method,
+          path: req.originalUrl,
+          statusCode,
+          error,
+        },
+        undefined,
+        'HttpExceptionFilter',
+      );
     }
 
     res.status(statusCode).json({
