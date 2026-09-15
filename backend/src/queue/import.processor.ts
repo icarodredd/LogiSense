@@ -37,10 +37,6 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const connection = this.redis.getClient();
     try {
-      if (connection.status !== 'ready') {
-        await connection.connect();
-      }
-
       this.worker = new Worker(
         QUEUE_NAMES.IMPORT_PROCESSING,
         async (job: Job<ImportJobData>) => {

@@ -36,4 +36,17 @@ async function bootstrap() {
   logger.log(`LogiSense API listening on :${port} (prefix /api)`, 'Bootstrap');
 }
 
-await bootstrap();
+await bootstrap().catch((error: unknown) => {
+  if (
+    error instanceof Error &&
+    'code' in error &&
+    error.code === 'EADDRINUSE'
+  ) {
+    console.error(
+      'A porta da API já está em uso. Encerre a instância existente ou defina outra porta via PORT antes de iniciar o backend.',
+    );
+  } else {
+    console.error('Falha ao iniciar a API:', error);
+  }
+  process.exit(1);
+});

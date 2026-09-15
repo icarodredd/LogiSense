@@ -13,8 +13,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   ) {
     const url = config.get<string>('redisUrl', { infer: true });
     this.client = new Redis(url ?? 'redis://localhost:6379', {
-      lazyConnect: true,
-      maxRetriesPerRequest: 2,
+      maxRetriesPerRequest: null,
       enableReadyCheck: true,
     });
     this.client.on('error', (error: unknown) => {
@@ -24,7 +23,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     try {
-      await this.client.connect();
+      await this.client.ping();
       this.logger.log('Connected to Redis', 'RedisService');
     } catch (error) {
       this.logger.warn(`Redis unavailable: ${String(error)}`, 'RedisService');
@@ -37,9 +36,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async ping(): Promise<string> {
     try {
-      if (this.client.status !== 'ready') {
-        await this.client.connect();
-      }
       return await this.client.ping();
     } catch {
       throw new Error('Redis connection is closed.');

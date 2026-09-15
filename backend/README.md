@@ -11,11 +11,11 @@ Docs de produto/arquitetura em `../docs/`.
 ## Subindo local
 
 ```bash
-# 1. Infra (na raiz do repo)
+# Execute estes comandos a partir da raiz do repositório.
 cp .env.example .env
 docker compose up -d mysql redis
 
-# 2. API
+# API no host (opcional; neste fluxo entre em backend apenas uma vez).
 cd backend
 cp .env.example .env
 pnpm install
@@ -24,7 +24,24 @@ pnpm exec prisma db seed
 pnpm start:dev   # http://localhost:3001/api/health
 ```
 
-Ou tudo via compose: `docker compose up -d --build` (api em modo dev na porta 3001).
+O fluxo principal usa todos os serviços via Compose:
+
+```bash
+# A partir da raiz do repositório.
+cp .env.example .env
+docker compose up -d --build
+curl http://localhost:3001/api/health
+```
+
+Para trocar apenas a porta publicada no host, use `API_PORT` na raiz:
+
+```bash
+API_PORT=3011 docker compose up -d --build
+```
+
+Se a porta já estiver ocupada, o Compose/API falha de forma explícita. Identifique o processo com `ss -ltnp 'sport = :3001'`, encerre somente a instância que você reconhece ou escolha outro `API_PORT`; não execute `cd backend` se o shell já estiver nesse diretório.
+
+Se o pnpm informar que scripts nativos foram bloqueados, revise os scripts aprovados pela política local do pnpm e reinstale as dependências antes de executar os comandos Prisma.
 
 ## Contas demo (seed, senha `Senha123!`)
 

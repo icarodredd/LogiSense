@@ -129,9 +129,10 @@ async function seedTenant(input: {
   await prisma.oAuthAccount.deleteMany({ where: { user: { tenantId: tenant.id } } });
   await prisma.user.deleteMany({ where: { tenantId: tenant.id } });
 
-  const users = await Promise.all(
-    input.users.map((user) =>
-      prisma.user.create({
+  const users = [];
+  for (const user of input.users) {
+    users.push(
+      await prisma.user.create({
         data: {
           tenantId: tenant.id,
           name: user.name,
@@ -140,12 +141,13 @@ async function seedTenant(input: {
           role: user.role,
         },
       }),
-    ),
-  );
+    );
+  }
 
-  const customers = await Promise.all(
-    input.customerNames.map((customer, index) =>
-      prisma.customer.create({
+  const customers = [];
+  for (const [index, customer] of input.customerNames.entries()) {
+    customers.push(
+      await prisma.customer.create({
         data: {
           tenantId: tenant.id,
           name: customer.name,
@@ -156,12 +158,13 @@ async function seedTenant(input: {
           state: customer.state,
         },
       }),
-    ),
-  );
+    );
+  }
 
-  const carriers = await Promise.all(
-    input.carriers.map((carrier) =>
-      prisma.carrier.create({
+  const carriers = [];
+  for (const carrier of input.carriers) {
+    carriers.push(
+      await prisma.carrier.create({
         data: {
           tenantId: tenant.id,
           name: carrier.name,
@@ -172,8 +175,8 @@ async function seedTenant(input: {
           cubingFactor: 6000,
         },
       }),
-    ),
-  );
+    );
+  }
 
   const pricing: CarrierPricing[] = carriers.map((carrier, index) => ({
     id: carrier.id,
