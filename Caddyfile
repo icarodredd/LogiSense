@@ -1,3 +1,7 @@
+{
+    admin off
+}
+
 :{$PORT} {
     handle /api/* {
         reverse_proxy localhost:3001
