@@ -16,13 +16,14 @@ pnpm test:coverage     # Com cobertura (se configurado)
 
 | Módulo | Testes | Status |
 |---|---|---|
-| Auth | Login, register, refresh, JWT | ✅ |
+| Auth | Login, register, refresh, JWT, MFA, OAuth, RBAC | ✅ |
 | Customers | CRUD, CEP, tenant isolation | ✅ |
-| Imports | Service, Worker, upload | ✅ |
+| Imports | Service, Worker, upload, retry | ✅ |
 | Integrations | ViaCEP, Open-Meteo | ✅ |
 | Insights | Economy, carrier, concentration, trend | ✅ |
+| WebSocket | Cookie auth, room authorization, progress events | ✅ |
 | Audit | Sanitization de metadata | ✅ |
-| **Total** | **100 testes, 16 arquivos** | ✅ |
+| **Total** | **122 testes, 20 arquivos unitários** | ✅ |
 
 ## Padrões de teste
 
@@ -46,12 +47,11 @@ const service = new MyService(
 
 Verificam que recursos do Tenant A não são acessíveis pelo Tenant B.
 
-## Testes que não existem ainda
+## Lacunas de validação
 
-- E2E com banco real (requer `RUN_DB_TESTS=true`)
-- Testes de segurança (rate limiting, MFA)
-- Testes de WebSocket
-- Testes de import real (CSV/XLSX)
+- E2E completo com banco real requer `RUN_DB_TESTS=true` e MySQL/Redis disponíveis.
+- OAuth de produção depende de credenciais e callbacks configurados nos provedores.
+- Smoke test público depende do ambiente de deploy.
 
 ## Qualidade
 

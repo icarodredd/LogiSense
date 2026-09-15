@@ -23,7 +23,7 @@ import { PrismaService } from '../../database/prisma.service.js';
 import { extractAuditContext } from '../audit/audit-context.js';
 import { AuditAction } from '../audit/audit-action.js';
 import { AuditService } from '../audit/audit.service.js';
-import { ConfirmMfaDto, DisableMfaDto, LoginDto, RegisterDto } from './auth.dto.js';
+import { ChangePasswordDto, ConfirmMfaDto, DisableMfaDto, LoginDto, RegisterDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
 import { MfaService } from './mfa.service.js';
 import { REFRESH_COOKIE } from './guards/jwt-auth.guard.js';
@@ -106,7 +106,7 @@ export class AuthController {
   async me(@CurrentUser() user: AuthenticatedUser) {
     const profile = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { id: true, tenantId: true, name: true, email: true, role: true },
+      select: { id: true, tenantId: true, name: true, email: true, role: true, mfaEnabled: true },
     });
     if (!profile) {
       throw new UnauthorizedException({
@@ -119,6 +119,21 @@ export class AuthController {
       select: { id: true, name: true, slug: true },
     });
     return { user: profile, tenant };
+  }
+
+  @Post('password')
+  @HttpCode(200)
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    return this.auth.changePassword(
+      user,
+      dto.currentPassword,
+      dto.newPassword,
+      extractAuditContext(req),
+    );
   }
 
   // ---------------- MFA/TOTP (AGENTS.md §16) ----------------

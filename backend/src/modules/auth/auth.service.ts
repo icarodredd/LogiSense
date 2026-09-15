@@ -225,4 +225,34 @@ export class AuthService {
       entityId: meta.userId,
     });
   }
+
+  async changePassword(
+    currentUser: { id: string; tenantId: string },
+    currentPassword: string,
+    newPassword: string,
+    auditCtx: AuditContext,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: currentUser.id, tenantId: currentUser.tenantId },
+    });
+    if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException({
+        code: 'INVALID_CURRENT_PASSWORD',
+        message: 'A senha atual está incorreta.',
+      });
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await this.users.hashPassword(newPassword) },
+    });
+    await this.audit.log({
+      ...auditCtx,
+      tenantId: user.tenantId,
+      userId: user.id,
+      action: AuditAction.PASSWORD_CHANGED,
+      entity: 'User',
+      entityId: user.id,
+    });
+    return { changed: true };
+  }
 }

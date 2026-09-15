@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical } from "lucide-react";
-import { Children, isValidElement, useState, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useState, type ReactNode } from "react";
 
 type SortDirection = "asc" | "desc";
 
@@ -41,7 +41,7 @@ export function SortableTable({ children, className = "data-table" }: { children
       const sortable = Boolean(cell && isValidElement<{ children?: ReactNode }>(cell) && textValue(cell.props.children).trim());
       const active = sort?.column === column;
       return isValidElement<{ children?: ReactNode; className?: string }>(cell)
-        ? <th {...cell.props} draggable={sortable} onDragStart={() => setDraggedColumn(column)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedColumn !== null) reorder(order.indexOf(draggedColumn), order.indexOf(column)); setDraggedColumn(null); }} onClick={() => sortable && setSort(active ? { column, direction: sort.direction === "asc" ? "desc" : "asc" } : { column, direction: "asc" })} className={`${cell.props.className ?? ""} sortable-header`}><span>{cell.props.children}</span>{sortable && (active ? (sort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ChevronsUpDown size={13} />)}{sortable && <GripVertical size={12} className="column-grip" />}</th>
+        ? <th key={`header-${column}`} {...cell.props} draggable={sortable} onDragStart={() => setDraggedColumn(column)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedColumn !== null) reorder(order.indexOf(draggedColumn), order.indexOf(column)); setDraggedColumn(null); }} onClick={() => sortable && setSort(active ? { column, direction: sort.direction === "asc" ? "desc" : "asc" } : { column, direction: "asc" })} className={`${cell.props.className ?? ""} sortable-header`}><div className="sortable-header-content"><span>{cell.props.children}</span>{sortable && (active ? (sort.direction === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ChevronsUpDown size={13} />)}{sortable && <GripVertical size={12} className="column-grip" />}</div></th>
         : cell;
     })}</tr></thead>
     : header;
@@ -62,7 +62,12 @@ export function SortableTable({ children, className = "data-table" }: { children
     }).map((row, rowIndex) => {
       if (!isValidElement<{ children?: ReactNode }>(row)) return row;
       const cells = Children.toArray(row.props.children);
-      return <tr key={row.key ?? rowIndex} {...row.props}>{order.map((column) => cells[column])}</tr>;
+      return <tr key={row.key ?? rowIndex} {...row.props}>{order.map((column) => {
+        const cell = cells[column];
+        return isValidElement(cell)
+          ? cloneElement(cell, { key: `cell-${row.key ?? rowIndex}-${column}` })
+          : cell;
+      })}</tr>;
     })}</tbody>
     : body;
 

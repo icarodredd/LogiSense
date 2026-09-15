@@ -7,7 +7,7 @@ import { DataPageShell } from "../../components/data-page";
 import { SortableTable } from "../../components/sortable-table";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { api, ApiError, type ImportRecord, type ImportStatus, type ImportType } from "../../lib/api";
+import { api, ApiError, type ImportProgress, type ImportRecord, type ImportStatus, type ImportType } from "../../lib/api";
 
 const typeLabels: Record<ImportType, string> = { CUSTOMERS: "Clientes", CARRIERS: "Transportadoras", SIMULATIONS: "Simulações" };
 const statusLabels: Record<ImportStatus, string> = { PENDING: "Na fila", PROCESSING: "Processando", COMPLETED: "Concluído", FAILED: "Falhou" };
@@ -32,6 +32,7 @@ export default function ImportsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [type, setType] = useState<ImportType>("CUSTOMERS");
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<Record<string, ImportProgress>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -54,9 +55,30 @@ export default function ImportsPage() {
   }, []);
 
   useEffect(() => {
-    if (!items.some((item) => item.status === "PENDING" || item.status === "PROCESSING")) return;
-    const timer = window.setInterval(() => void load(), 3000);
-    return () => window.clearInterval(timer);
+    const active = items.filter((item) => item.status === "PENDING" || item.status === "PROCESSING");
+    if (!active.length) return;
+    let cancelled = false;
+    const cleanups: Array<() => void> = [];
+    void Promise.all(active.map(async (item) => {
+      try {
+        const cleanup = await api.importProgress(item.id, (event) => {
+          if (!cancelled) {
+            setProgress((current) => ({ ...current, [item.id]: event }));
+            if (event.status === "COMPLETED" || event.status === "FAILED") void load();
+          }
+        });
+        if (!cancelled) cleanups.push(cleanup);
+        else cleanup();
+      } catch {
+        // A reconnect or the fallback list refresh keeps the status visible.
+      }
+    }));
+    const fallback = window.setInterval(() => void load(), 10000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(fallback);
+      cleanups.forEach((cleanup) => cleanup());
+    };
   }, [items]);
 
   async function submit(event: React.FormEvent) {
@@ -104,6 +126,6 @@ export default function ImportsPage() {
     {!role && <div className="access-state"><Loader2 size={18} className="spin" /> Verificando suas permissões...</div>}
     {role && !canUpload && <div className="callout access-callout">Seu perfil pode acompanhar importações, mas apenas administradores e gestores podem enviar ou reprocessar arquivos.</div>}
     {canUpload && <form className="import-upload panel" onSubmit={submit}><div><span className="eyebrow">Upload seguro</span><h2>Adicionar arquivo</h2><p>CSV ou XLSX, até 10 MB. Escolha o tipo de registro antes de enviar.</p></div><div className="import-form-row"><label className="file-drop"><FileUp size={21} /><span>{file ? file.name : "Escolher arquivo"}</span><small>{file ? formatBytes(file.size) : "Clique para procurar no dispositivo"}</small><input ref={inputRef} type="file" accept=".csv,.xlsx" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label><label className="import-select">Tipo<select value={type} onChange={(event) => setType(event.target.value as ImportType)}><option value="CUSTOMERS">Clientes</option><option value="CARRIERS">Transportadoras</option><option value="SIMULATIONS">Simulações</option></select></label><Button disabled={uploading || !file}>{uploading ? <><Loader2 size={16} className="spin" /> Enviando...</> : <><Upload size={16} /> Enviar arquivo</>}</Button></div></form>}
-    <div className="panel import-list-panel"><div className="panel-heading"><div><h2>Arquivos recentes</h2><p>Atualização automática durante o processamento.</p></div><button className="icon-button" onClick={() => void load()} aria-label="Atualizar importações"><RefreshCw size={16} /></button></div>{loading ? <div className="import-skeletons">{[1, 2, 3].map((item) => <div className="table-skeleton" key={item} />)}</div> : !items.length ? <div className="empty-table"><FileUp size={25} /><strong>Nenhuma importação ainda</strong><span>Envie um arquivo para começar a alimentar sua operação.</span></div> : <div className="import-table-wrap"><SortableTable><thead><tr><th>Arquivo</th><th>Tipo</th><th>Progresso</th><th>Status</th><th>Data</th><th /></tr></thead><tbody>{items.map((item) => { const percentage = item.totalRows ? Math.min(100, Math.round((item.processedRows / item.totalRows) * 100)) : item.status === "COMPLETED" ? 100 : 0; return <tr key={item.id}><td><strong>{item.filename}</strong><small>{formatBytes(item.sizeBytes)}</small></td><td>{typeLabels[item.type]}</td><td><div className="import-progress"><div><span>{item.processedRows} de {item.totalRows || "—"} linhas</span><strong>{percentage}%</strong></div><i><b style={{ width: `${percentage}%` }} /></i></div></td><td><Badge className={`import-status status-${item.status.toLowerCase()}`}>{statusIcon(item.status)} {statusLabels[item.status]}</Badge>{item.errorMessage && <small className="import-error">{item.errorMessage}</small>}</td><td>{new Date(item.createdAt).toLocaleDateString("pt-BR")}</td><td>{item.status === "FAILED" && canUpload && <button className="text-link" onClick={() => void retry(item.id)}>Reprocessar</button>}</td></tr>; })}</tbody></SortableTable></div>}</div>
+    <div className="panel import-list-panel"><div className="panel-heading"><div><h2>Arquivos recentes</h2><p>Atualização automática durante o processamento.</p></div><button className="icon-button" onClick={() => void load()} aria-label="Atualizar importações"><RefreshCw size={16} /></button></div>{loading ? <div className="import-skeletons">{[1, 2, 3].map((item) => <div className="table-skeleton" key={item} />)}</div> : !items.length ? <div className="empty-table"><FileUp size={25} /><strong>Nenhuma importação ainda</strong><span>Envie um arquivo para começar a alimentar sua operação.</span></div> : <div className="import-table-wrap"><SortableTable><thead><tr><th>Arquivo</th><th>Tipo</th><th>Progresso</th><th>Status</th><th>Data</th><th /></tr></thead><tbody>{items.map((item) => {     const live = progress[item.id]; const percentage = live?.percentage ?? (item.totalRows ? Math.min(100, Math.round((item.processedRows / item.totalRows) * 100)) : item.status === "COMPLETED" ? 100 : 0); const processed = live?.processed ?? item.processedRows; const total = live?.total || item.totalRows; return <tr key={item.id}><td><strong>{item.filename}</strong><small>{formatBytes(item.sizeBytes)}</small></td><td>{typeLabels[item.type]}</td><td><div className="import-progress"><div><span>{processed} de {total || "—"} linhas</span><strong>{percentage}%</strong></div><i><b style={{ width: `${percentage}%` }} /></i></div></td><td><Badge className={`import-status status-${(live?.status ?? item.status).toLowerCase()}`}>{statusIcon(live?.status ?? item.status)} {statusLabels[live?.status ?? item.status]}</Badge>{(live?.errorMessage ?? item.errorMessage) && <small className="import-error">{live?.errorMessage ?? item.errorMessage}</small>}</td><td>{new Date(item.createdAt).toLocaleDateString("pt-BR")}</td><td>{item.status === "FAILED" && canUpload && <button className="text-link" onClick={() => void retry(item.id)}>Reprocessar</button>}</td></tr>; })}</tbody></SortableTable></div>}</div>
   </motion.div></DataPageShell>;
 }

@@ -64,3 +64,16 @@ export class DisableMfaDto {
   @Matches(/^\d{6}$/, { message: 'O código TOTP deve ter 6 dígitos.' })
   totpCode!: string;
 }
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, { message: PASSWORD_RULE_MESSAGE })
+  newPassword!: string;
+}

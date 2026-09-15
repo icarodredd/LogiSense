@@ -14,14 +14,18 @@ const items = [
 ] as const;
 
 export function DataPageShell({ active, children }: { active: string; children: ReactNode }) {
-  const cachedSession = api.cachedSession();
-  const [user, setUser] = useState<AuthUser | null>(cachedSession?.user ?? null);
-  const [tenant, setTenant] = useState<{ name: string } | null>(cachedSession?.tenant ?? null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [tenant, setTenant] = useState<{ name: string } | null>(null);
   const [sessionError, setSessionError] = useState(false);
   const [open, setOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const router = useRouter();
-  useEffect(() => { api.me().then((session) => { setUser(session.user); setTenant(session.tenant); }).catch(() => setSessionError(true)); }, []);
+  useEffect(() => {
+    api.me().then((session) => {
+      setUser(session.user);
+      setTenant(session.tenant);
+    }).catch(() => setSessionError(true));
+  }, []);
   async function logout() { await api.logout().catch(() => undefined); router.push("/login"); }
   const roleLabel = user?.role === "ADMIN" ? "Administrador" : user?.role === "MANAGER" ? "Gestor" : "Operador";
   return <div className="app-shell">

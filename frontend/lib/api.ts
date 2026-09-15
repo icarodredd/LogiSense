@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const SOCKET_URL = API_BASE_URL.replace(/\/$/, "").replace(/\/api$/, "");
 const API_URL = API_BASE_URL.replace(/\/$/, "").endsWith("/api")
   ? API_BASE_URL.replace(/\/$/, "")
   : `${API_BASE_URL.replace(/\/$/, "")}/api`;
@@ -9,6 +10,7 @@ export type AuthUser = {
   email: string;
   role: "ADMIN" | "MANAGER" | "OPERATOR";
   tenantId: string;
+  mfaEnabled: boolean;
 };
 export type AuthTenant = { id: string; name: string; slug: string };
 type CachedSession = { user: AuthUser; tenant: AuthTenant };
@@ -43,7 +45,7 @@ export type DashboardRoute = {
 
 export type Customer = {
   id: string; name: string; document: string | null; email: string | null;
-  phone: string | null; city: string | null; state: string | null; status: "ACTIVE" | "INACTIVE";
+  phone: string | null; cep: string | null; city: string | null; state: string | null; status: "ACTIVE" | "INACTIVE";
 };
 export type Carrier = {
   id: string; name: string; document: string | null; email: string | null; phone: string | null;
@@ -76,6 +78,13 @@ export type ImportRecord = {
   errorMessage: string | null;
   createdAt: string;
   completedAt: string | null;
+};
+export type ImportProgress = {
+  status: ImportStatus;
+  processed: number;
+  total: number;
+  percentage: number;
+  errorMessage?: string;
 };
 export type Insight = {
   id: string;
@@ -219,6 +228,28 @@ export const api = {
     return upload<ImportRecord>("/imports", body);
   },
   retryImport: (id: string) => request<ImportRecord>(`/imports/${id}/retry`, { method: "POST" }),
+  importProgress: async (importId: string, onProgress: (progress: ImportProgress) => void) => {
+    const { io } = await import("socket.io-client");
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket"] });
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect_error", (error) => {
+        socket.close();
+        reject(error);
+      });
+      socket.once("connect", () => {
+        socket.emit("join-import", { importId }, (result: { ok: boolean; error?: string }) => {
+          if (!result.ok) {
+            socket.close();
+            reject(new ApiError({ statusCode: result.error === "FORBIDDEN" ? 403 : 401, code: result.error, message: "Não foi possível acompanhar esta importação." }));
+            return;
+          }
+          resolve();
+        });
+      });
+    });
+    socket.on("import-progress", onProgress);
+    return () => socket.close();
+  },
   insights: () => request<Insight[]>("/insights"),
   regenerateInsights: () => request<Insight[]>("/insights/regenerate", { method: "POST" }),
   users: (params = "") => request<Page<ManagedUser>>(`/users?limit=20${params}`),
@@ -229,4 +260,5 @@ export const api = {
   mfaSetup: () => request<{ otpauthUri: string; qrCodeDataUri: string; secret: string }>("/auth/mfa/setup", { method: "POST" }),
   mfaConfirm: (totpCode: string) => request<{ mfaEnabled: true }>("/auth/mfa/confirm", { method: "POST", body: JSON.stringify({ totpCode }) }),
   mfaDisable: (password: string, totpCode: string) => request<{ mfaEnabled: false }>("/auth/mfa/disable", { method: "POST", body: JSON.stringify({ password, totpCode }) }),
+  changePassword: (currentPassword: string, newPassword: string) => request<{ changed: true }>("/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),
 };

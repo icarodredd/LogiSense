@@ -33,6 +33,18 @@ docker compose up -d --build
 curl http://localhost:3001/api/health
 ```
 
+Para desenvolvimento com sincronização automática de arquivos e rebuild quando
+dependências mudarem:
+
+```bash
+docker compose watch
+```
+
+O modo watch mantém MySQL e Redis ativos e executa a API e o frontend em modo
+de desenvolvimento. Alterações em `backend/src`, `backend/prisma`, `frontend/app`,
+`frontend/components`, `frontend/lib` e `frontend/public` são sincronizadas sem
+recriar os containers; alterações nos manifests do pnpm disparam rebuild.
+
 Antes de testar rotas autenticadas, confirme que o health check indica MySQL e
 Redis como `up`:
 

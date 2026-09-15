@@ -27,6 +27,17 @@ export class WsAuthService {
     if (typeof header === 'string' && header.startsWith('Bearer ')) {
       return header.slice('Bearer '.length);
     }
+    const cookieHeader = client.handshake.headers?.cookie;
+    if (typeof cookieHeader === 'string') {
+      const accessCookie = cookieHeader
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith('ls_access='));
+      if (accessCookie) {
+        const value = accessCookie.slice('ls_access='.length);
+        if (value.length > 0) return decodeURIComponent(value);
+      }
+    }
     return null;
   }
 
