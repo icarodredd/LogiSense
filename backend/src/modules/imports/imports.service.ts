@@ -1,12 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
 import { AuditAction } from '../audit/audit-action.js';
 import { AuditService, type AuditContext } from '../audit/audit.service.js';
 import { ImportProcessor } from '../../queue/import.processor.js';
-import { ImportStatus, ImportType } from '@prisma/client';
+import { ImportStatus } from '@prisma/client';
 import { toImportResponse } from './import.presenter.js';
-import type { ImportFileDto } from './import.dto.js';
+import type { ImportFileMeta, ListImportsQueryDto } from './import.dto.js';
 
 @Injectable()
 export class ImportsService {
@@ -16,12 +16,12 @@ export class ImportsService {
     @Inject(ImportProcessor) private readonly processor: ImportProcessor,
   ) {}
 
-  async list(currentUser: AuthenticatedUser, query: { page?: number; limit?: number; status?: string }) {
+  async list(currentUser: AuthenticatedUser, query: ListImportsQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Record<string, unknown> = {
       tenantId: currentUser.tenantId,
-      ...(query.status ? { status: query.status as ImportStatus } : {}),
+      ...(query.status ? { status: query.status } : {}),
     };
     const [total, imports] = await Promise.all([
       this.prisma.import.count({ where }),
@@ -48,16 +48,20 @@ export class ImportsService {
     return toImportResponse(imp);
   }
 
-  async create(currentUser: AuthenticatedUser, dto: ImportFileDto, filePath: string, auditCtx: AuditContext) {
+  async create(
+    currentUser: AuthenticatedUser,
+    meta: ImportFileMeta,
+    auditCtx: AuditContext,
+  ) {
     const imp = await this.prisma.import.create({
       data: {
         tenantId: currentUser.tenantId,
         userId: currentUser.id,
-        filename: dto.filename,
-        storedPath: filePath,
-        mimeType: dto.type,
-        type: dto.type as ImportType,
-        sizeBytes: dto.sizeBytes,
+        filename: meta.originalName,
+        storedPath: meta.storedPath,
+        mimeType: meta.mimeType,
+        type: meta.type,
+        sizeBytes: meta.sizeBytes,
         status: ImportStatus.PENDING,
       },
     });
@@ -69,25 +73,30 @@ export class ImportsService {
       action: AuditAction.IMPORT_STARTED,
       entity: 'Import',
       entityId: imp.id,
-      metadata: { filename: imp.filename, type: imp.type },
+      metadata: { filename: imp.filename, type: imp.type, sizeBytes: imp.sizeBytes },
     });
 
     await this.processor.addImportJob({
       importId: imp.id,
       tenantId: currentUser.tenantId,
       userId: currentUser.id,
-      filename: imp.filename,
       type: imp.type,
       filePath: imp.storedPath ?? '',
       mimeType: imp.mimeType ?? '',
+      filename: imp.filename,
       sizeBytes: imp.sizeBytes,
+      auditCtx: {
+        ip: auditCtx.ip,
+        userAgent: auditCtx.userAgent,
+        requestId: auditCtx.requestId,
+      },
     });
 
-    await this.prisma.import.update({
+    const updated = await this.prisma.import.update({
       where: { id: imp.id },
       data: { status: ImportStatus.PROCESSING },
     });
 
-    return toImportResponse(imp);
+    return toImportResponse(updated);
   }
 }

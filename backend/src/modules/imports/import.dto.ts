@@ -1,18 +1,47 @@
-import { z } from 'zod';
+import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export const importFileSchema = z.object({
-  filename: z.string().min(1).max(255),
-  type: z.enum(['CUSTOMERS', 'CARRIERS', 'SIMULATIONS']),
-  sizeBytes: z.number().int().positive().max(10 * 1024 * 1024),
-});
+export enum ImportTypeValue {
+  CUSTOMERS = 'CUSTOMERS',
+  CARRIERS = 'CARRIERS',
+  SIMULATIONS = 'SIMULATIONS',
+}
 
-export type ImportFileDto = z.infer<typeof importFileSchema>;
-export type CreateImportDto = ImportFileDto;
+export enum ImportStatusValue {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
 
-export const listImportsQuerySchema = z.object({
-  page: z.number().int().positive().default(1),
-  limit: z.number().int().positive().max(100).default(20),
-  status: z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']).optional(),
-});
+export class CreateImportDto {
+  @IsEnum(ImportTypeValue)
+  type!: ImportTypeValue;
+}
 
-export type ListImportsQueryDto = z.infer<typeof listImportsQuerySchema>;
+export class ListImportsQueryDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsEnum(ImportStatusValue)
+  status?: ImportStatusValue;
+}
+
+export const IMPORT_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+export const IMPORT_ALLOWED_EXTENSIONS = ['.csv', '.xlsx'] as const;
+
+export interface ImportFileMeta {
+  originalName: string;
+  storedPath: string;
+  mimeType: string;
+  sizeBytes: number;
+  type: ImportTypeValue;
+}

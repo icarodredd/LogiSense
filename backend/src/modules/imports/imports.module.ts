@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
+import { QueueModule } from '../../queue/queue.module.js';
 import { ImportsController } from './imports.controller.js';
 import { ImportsService } from './imports.service.js';
-import { ImportWorker } from './import.worker.js';
-import { WebSocketGateway } from '../../websocket/websocket.gateway.js';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, QueueModule],
   controllers: [ImportsController],
-  providers: [ImportsService, ImportWorker, WebSocketGateway],
+  providers: [ImportsService],
   exports: [ImportsService],
 })
 export class ImportsModule {}

@@ -60,5 +60,16 @@ RUN_DB_TESTS=true DATABASE_URL=mysql://... pnpm test:e2e
 - `POST /api/auth/logout` · `GET /api/auth/me`
 - `GET /api/users` · `POST /api/users` · `GET/PATCH/DELETE /api/users/:id`
 - `GET /api/tenants/me` · `GET /api/audit`
+- `GET /api/integrations/cep/:cep` — consulta ViaCEP
+- `GET /api/integrations/weather?lat=&lon=` — consulta Open-Meteo
 
 Erros seguem o envelope `{ statusCode, code, message, timestamp, requestId }`.
+
+## Integrações externas
+
+| Provedor | Endpoint | Finalidade |
+|---|---|---|
+| ViaCEP | `GET /api/integrations/cep/:cep` | Endereço por CEP |
+| Open-Meteo | `GET /api/integrations/weather` | Condições climáticas |
+
+Docs detalhadas em `docs/external-integrations.md`.

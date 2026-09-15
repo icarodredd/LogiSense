@@ -1,11 +1,29 @@
-import { Controller, Get, Post, Param, Body, Query, Req, UseInterceptors, Inject } from '@nestjs/common';
-import { Request } from 'express';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  Req,
+  UseInterceptors,
+  Inject,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
+import { randomUUID } from 'node:crypto';
+import { extname, join } from 'node:path';
+import { diskStorage } from 'multer';
 import type { CreateImportDto, ListImportsQueryDto } from './import.dto.js';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { extractAuditContext } from '../audit/audit-context.js';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportsService } from './imports.service.js';
+import { IMPORT_ALLOWED_EXTENSIONS, IMPORT_MAX_SIZE_BYTES } from './import.dto.js';
+
+const UPLOAD_DIR = join(process.cwd(), 'uploads', 'imports');
 
 @Controller('imports')
 export class ImportsController {
@@ -30,17 +48,66 @@ export class ImportsController {
 
   @Post()
   @Roles('ADMIN', 'MANAGER')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          cb(null, UPLOAD_DIR);
+        },
+        filename: (_req, file, cb) => {
+          const unique = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
+          cb(null, unique);
+        },
+      }),
+      limits: { fileSize: IMPORT_MAX_SIZE_BYTES },
+      fileFilter: (_req, file, cb) => {
+        const ext = extname(file.originalname).toLowerCase();
+        if (!IMPORT_ALLOWED_EXTENSIONS.includes(ext as '.csv' | '.xlsx')) {
+          cb(
+            new BadRequestException({
+              code: 'IMPORT_INVALID_FILE_TYPE',
+              message: 'A extensão do arquivo deve ser .csv ou .xlsx.',
+            }),
+            false,
+          );
+          return;
+        }
+        const validMimeTypes = ['text/csv', 'application/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'];
+        if (file.mimetype && !validMimeTypes.includes(file.mimetype)) {
+          cb(
+            new BadRequestException({
+              code: 'IMPORT_INVALID_MIME_TYPE',
+              message: `Tipo de conteúdo não suportado: ${file.mimetype}`,
+            }),
+            false,
+          );
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateImportDto,
-    @Req() req: Request & { file?: { originalname: string; mimetype: string; size: number } },
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: Request,
   ) {
-    const file = req.file!;
+    if (!file) {
+      throw new BadRequestException({
+        code: 'IMPORT_FILE_REQUIRED',
+        message: 'Arquivo é obrigatório (campo "file").',
+      });
+    }
     return this.imports.create(
       user,
-      { filename: file.originalname, type: dto.type, sizeBytes: file.size },
-      `/uploads/${file.originalname}`,
+      {
+        originalName: file.originalname,
+        storedPath: file.path,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        type: dto.type,
+      },
       extractAuditContext(req),
     );
   }

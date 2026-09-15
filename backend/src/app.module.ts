@@ -21,15 +21,16 @@ import { SimulationsModule } from './modules/simulations/simulations.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { ImportsModule } from './modules/imports/imports.module.js';
+import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { QueueModule } from './queue/queue.module.js';
-import { WebSocketGateway } from './websocket/websocket.gateway.js';
+import { WebSocketModule } from './websocket/websocket.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
     RateLimitModule.forRoot({ limit: 120, ttlMs: 60_000 }),
     DatabaseModule,
-    QueueModule.forRoot(),
+    QueueModule,
     AuditModule,
     AuthModule,
     UsersModule,
@@ -41,6 +42,8 @@ import { WebSocketGateway } from './websocket/websocket.gateway.js';
     InsightsModule,
     HealthModule,
     ImportsModule,
+    IntegrationsModule,
+    WebSocketModule,
   ],
   providers: [
     AppLogger,

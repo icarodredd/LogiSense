@@ -1,8 +1,4 @@
-import { toImportResponse } from './import.presenter.js';
-import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
-import { AuditAction } from '../audit/audit-action.js';
-import { AuditService, type AuditContext } from '../audit/audit.service.js';
-import { ImportStatus } from '@prisma/client';
+import { ImportType, ImportStatus } from '@prisma/client';
 
 export function toImportResponse(imp: {
   id: string;
@@ -11,28 +7,26 @@ export function toImportResponse(imp: {
   filename: string;
   storedPath?: string | null;
   mimeType?: string | null;
-  type: ImportStatus;
+  type: ImportType;
   sizeBytes: number;
   status: ImportStatus;
   totalRows: number;
   processedRows: number;
   errorMessage?: string | null;
   createdAt: Date;
-  completedAt?: Date | null;
+  completedAt: Date | null;
 }) {
   return {
     id: imp.id,
     tenantId: imp.tenantId,
-    userId: imp.userId ?? undefined,
+    userId: imp.userId,
     filename: imp.filename,
-    storedPath: imp.storedPath,
-    mimeType: imp.mimeType,
     type: imp.type,
     sizeBytes: imp.sizeBytes,
     status: imp.status,
     totalRows: imp.totalRows,
     processedRows: imp.processedRows,
-    errorMessage: imp.errorMessage,
+    errorMessage: imp.errorMessage ?? null,
     createdAt: imp.createdAt,
     completedAt: imp.completedAt,
   };

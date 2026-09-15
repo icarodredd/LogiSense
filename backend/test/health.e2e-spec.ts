@@ -3,10 +3,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { PrismaService } from './../src/database/prisma.service.js';
 import { RedisService } from './../src/database/redis.service.js';
+import { ImportProcessor } from './../src/queue/import.processor.js';
 import { AppModule } from './../src/app.module.js';
 
 describe('Health (e2e)', () => {
   let app: INestApplication;
+
+  const fakeRedis = () => ({
+    ping: async () => 'PONG',
+    getClient: () => ({ status: 'ready' }),
+  });
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -15,7 +21,9 @@ describe('Health (e2e)', () => {
       .overrideProvider(PrismaService)
       .useValue({ $queryRaw: async () => [{ '1': 1 }] })
       .overrideProvider(RedisService)
-      .useValue({ ping: async () => 'PONG' })
+      .useValue(fakeRedis())
+      .overrideProvider(ImportProcessor)
+      .useValue({ addImportJob: async () => undefined })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -49,7 +57,9 @@ describe('Health (e2e)', () => {
         },
       })
       .overrideProvider(RedisService)
-      .useValue({ ping: async () => 'PONG' })
+      .useValue(fakeRedis())
+      .overrideProvider(ImportProcessor)
+      .useValue({ addImportJob: async () => undefined })
       .compile();
 
     const degradedApp = moduleFixture.createNestApplication();
