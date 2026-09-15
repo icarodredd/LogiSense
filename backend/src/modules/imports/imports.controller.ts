@@ -16,7 +16,7 @@ import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 import { diskStorage } from 'multer';
-import type { CreateImportDto, ListImportsQueryDto } from './import.dto.js';
+import { CreateImportDto, ListImportsQueryDto } from './import.dto.js';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { extractAuditContext } from '../audit/audit-context.js';
