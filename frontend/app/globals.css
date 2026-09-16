@@ -534,10 +534,18 @@ textarea {
   border-radius: 3px;
   background: #dbe3e7;
 }
-.story-lines i:nth-child(2) { width: 78%; }
-.story-lines i:nth-child(3) { width: 91%; }
-.story-lines i:nth-child(4) { width: 63%; }
-.story-lines i:nth-child(5) { width: 84%; }
+.story-lines i:nth-child(2) {
+  width: 78%;
+}
+.story-lines i:nth-child(3) {
+  width: 91%;
+}
+.story-lines i:nth-child(4) {
+  width: 63%;
+}
+.story-lines i:nth-child(5) {
+  width: 84%;
+}
 .story-card-foot {
   padding-top: 15px;
   border-top: 1px solid #dce4e8;
@@ -562,7 +570,9 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  transition: border-color 0.18s, transform 0.18s;
+  transition:
+    border-color 0.18s,
+    transform 0.18s;
 }
 .module-card:hover {
   border-color: #cbd8df;
@@ -2411,7 +2421,7 @@ textarea {
   line-height: 1.65;
 }
 .result-steps {
-  display: grid;
+  display: flex;
   grid-template-columns: auto auto auto auto auto;
   align-items: center;
   gap: 8px;
