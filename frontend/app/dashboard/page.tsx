@@ -31,15 +31,26 @@ export default function DashboardPage() {
   const [carriers, setCarriers] = useState<DashboardCarrier[]>([]);
   const [routes, setRoutes] = useState<DashboardRoute[]>([]);
   const [error, setError] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
   const [mobileNav, setMobileNav] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   useEffect(() => {
-    api.me().then((session) => { setUser(session.user); setTenant(session.tenant); }).catch((cause) => setError(cause instanceof Error ? cause.message : "Sua sessão não está disponível."));
+    async function loadSession() {
+      try {
+        const session = await api.me();
+        setUser(session.user);
+        setTenant(session.tenant);
+        setAuthLoading(false);
+      } catch {
+        router.replace("/login");
+      }
+    }
+    void loadSession();
     Promise.all([api.overview(), api.carriers(), api.routes()])
       .then(([overviewData, carriersData, routesData]) => { setOverview(overviewData); setCarriers(carriersData); setRoutes(routesData); })
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível carregar a visão geral."));
-  }, []);
+  }, [router]);
 
   const maxCarrier = useMemo(() => Math.max(...carriers.map((carrier) => carrier.avgCost), 1), [carriers]);
   const maxRoute = Math.max(...routes.map((route) => route.count), 1);
@@ -49,6 +60,10 @@ export default function DashboardPage() {
     router.push("/login");
   }
   const roleLabel = user?.role === "ADMIN" ? "Administrador" : user?.role === "MANAGER" ? "Gestor" : "Operador";
+
+  if (authLoading) {
+    return <main className="auth-page"><div className="auth-panel"><div className="auth-brand"><span className="brand-symbol">L</span><span>LogiSense</span></div><p>Verificando seu acesso...</p></div></main>;
+  }
 
   return <div className="app-shell">
     <aside className={`app-sidebar ${mobileNav ? "is-open" : ""}`}>

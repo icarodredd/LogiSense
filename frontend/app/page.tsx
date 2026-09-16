@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, Check, CircleDashed, Route, ShieldCheck } from "lucide-react";
+import { PlatformEntryLink } from "../components/platform-entry-link";
 
 const benefits = [
   {
@@ -31,9 +32,9 @@ export default function Home() {
           <a href="#produto">Produto</a>
           <a href="#beneficios">Benefícios</a>
           <Link href="/login" className="nav-login">Entrar</Link>
-          <Link href="/dashboard" className="button button-primary button-small">
+          <PlatformEntryLink className="button button-primary button-small">
             Acessar plataforma <ArrowRight size={15} />
-          </Link>
+          </PlatformEntryLink>
         </div>
       </nav>
 
@@ -46,9 +47,9 @@ export default function Home() {
             encontre alternativas melhores com mais segurança.
           </p>
           <div className="hero-actions">
-            <Link href="/dashboard" className="button button-primary">
+            <PlatformEntryLink className="button button-primary">
               Conhecer a plataforma <ArrowRight size={16} />
-            </Link>
+            </PlatformEntryLink>
             <a href="#produto" className="button button-secondary">Como funciona</a>
           </div>
           <div className="hero-note"><Check size={15} /> Uma visão prática para cada decisão de transporte</div>
