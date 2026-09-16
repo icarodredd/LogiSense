@@ -2057,7 +2057,7 @@ textarea {
 }
 .file-drop small {
   grid-column: 2;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 9px;
 }
 .file-drop input {
@@ -2161,9 +2161,14 @@ textarea {
   gap: 10px;
   min-height: 180px;
   place-content: center;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 11px;
   text-align: center;
+}
+.insights-empty p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 .access-callout,
 .success-callout {
@@ -2207,7 +2212,7 @@ textarea {
 }
 .insight-date {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: 9px;
 }
 .insight-card h2 {
@@ -2228,13 +2233,13 @@ textarea {
   font-weight: 600;
 }
 .severity-high {
-  color: var(--danger);
+  color: #a45f5f;
 }
 .severity-medium {
-  color: var(--amber);
+  color: #976c2f;
 }
 .severity-low {
-  color: var(--green);
+  color: #4f7d64;
 }
 .insight-card-skeleton {
   display: grid;
