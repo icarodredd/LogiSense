@@ -4,7 +4,6 @@
 
 [![Stack](https://img.shields.io/badge/stack-NestJS%20%2B%20Next.js-587A91)](#stack)
 [![Database](https://img.shields.io/badge/database-MySQL-587A91)](#infraestrutura-local)
-[![Tests](https://img.shields.io/badge/backend-tests-122-6C9B82)](#testes-e-qualidade)
 
 ## Visão geral
 
